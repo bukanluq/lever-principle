@@ -3,417 +3,338 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pro Lever Mechanics Simulator</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+    <title>Physics-Based Lever Sandbox</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
     <style>
-        :root {
-            --bg-color: #f1f5f9;
-            --card-bg: #ffffff;
-            --primary: #3b82f6;
-            --danger: #ef4444;
-            --warning: #f59e0b;
-            --text-main: #1e293b;
-            --text-muted: #64748b;
-            --border: #e2e8f0;
-        }
-
         body {
-            font-family: 'Inter', sans-serif;
-            background-color: var(--bg-color);
-            color: var(--text-main);
+            font-family: 'Consolas', 'Courier New', monospace;
+            background-color: #1e1e1e;
+            color: #d4d4d4;
             display: flex;
             flex-direction: column;
             align-items: center;
             margin: 0;
-            padding: 40px 20px;
+            padding: 30px;
         }
 
-        .container {
-            background: var(--card-bg);
-            padding: 30px;
-            border-radius: 20px;
-            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
-            max-width: 850px;
+        .workspace {
+            background: #252526;
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid #333;
+            box-shadow: 0 15px 30px rgba(0,0,0,0.5);
+            max-width: 840px;
             width: 100%;
         }
 
         h2 {
-            text-align: center;
-            margin: 0 0 25px 0;
-            font-weight: 800;
-            font-size: 28px;
-            color: #0f172a;
-            letter-spacing: -0.5px;
+            margin-top: 0;
+            color: #569cd6;
+            font-weight: normal;
+            border-bottom: 1px solid #333;
+            padding-bottom: 10px;
         }
 
-        canvas {
-            background-color: #f8fafc;
-            border-radius: 12px;
-            border: 2px solid var(--border);
-            display: block;
-            margin: 0 auto 25px auto;
-            width: 100%;
-            max-width: 800px;
-            box-shadow: inset 0 2px 4px rgba(0,0,0,0.02);
+        #canvas-container {
+            border: 1px solid #444;
+            background-color: #1e1e1e;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: center;
         }
 
-        .controls {
+        .panel {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            grid-template-columns: 1fr 1fr;
             gap: 20px;
+            background: #1e1e1e;
+            padding: 15px;
+            border-radius: 4px;
+            border: 1px solid #333;
         }
 
         .control-group {
-            background: #f8fafc;
-            padding: 15px 20px;
-            border-radius: 12px;
-            border: 1px solid var(--border);
-            transition: all 0.2s ease;
-        }
-
-        .control-group:hover {
-            border-color: #cbd5e1;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
-        }
-
-        .control-group label {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            font-weight: 600;
-            margin-bottom: 12px;
-            font-size: 14px;
-            color: #334155;
-        }
-
-        .control-group label span {
-            background: #e2e8f0;
-            padding: 4px 10px;
-            border-radius: 20px;
-            font-size: 13px;
-            color: #0f172a;
-            font-weight: 800;
-        }
-
-        /* Juicy Custom Sliders */
-        input[type="range"] {
-            -webkit-appearance: none;
-            width: 100%;
-            background: transparent;
-        }
-
-        input[type="range"]::-webkit-slider-thumb {
-            -webkit-appearance: none;
-            height: 20px;
-            width: 20px;
-            border-radius: 50%;
-            background: var(--primary);
-            cursor: pointer;
-            margin-top: -8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-            transition: transform 0.1s;
-        }
-
-        input[type="range"]::-webkit-slider-thumb:hover {
-            transform: scale(1.2);
-        }
-
-        input[type="range"]::-webkit-slider-runnable-track {
-            width: 100%;
-            height: 6px;
-            cursor: pointer;
-            background: #cbd5e1;
-            border-radius: 4px;
-        }
-
-        input[type="range"]:focus {
-            outline: none;
-        }
-
-        .dashboard {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-top: 25px;
-            padding-top: 25px;
-            border-top: 2px dashed var(--border);
-        }
-
-        .stats {
-            display: flex;
-            gap: 30px;
-        }
-
-        .stat-box {
             display: flex;
             flex-direction: column;
         }
 
-        .stat-label {
+        label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 13px;
+            color: #9cdcfe;
+            margin-bottom: 8px;
+        }
+
+        input[type="range"] {
+            -webkit-appearance: none;
+            width: 100%;
+            background: #333;
+            height: 4px;
+            border-radius: 2px;
+            outline: none;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            background: #007acc;
+            cursor: pointer;
+        }
+
+        .action-row {
+            grid-column: span 2;
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        button {
+            flex: 1;
+            padding: 12px;
+            background-color: #007acc;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-family: inherit;
+            font-size: 14px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        button:hover { background-color: #0098ff; }
+        button:active { background-color: #005a9e; }
+        
+        #pushBtn { background-color: #ce9178; color: #1e1e1e; font-weight: bold; }
+        #pushBtn:hover { background-color: #d16969; color: white;}
+        #pushBtn:active { background-color: #f44336; }
+
+        .hint {
+            grid-column: span 2;
             font-size: 12px;
-            text-transform: uppercase;
-            font-weight: 800;
-            color: var(--text-muted);
-            letter-spacing: 0.5px;
-        }
-
-        .stat-value {
-            font-size: 24px;
-            font-weight: 800;
-            color: var(--text-main);
-        }
-
-        .status {
-            padding: 12px 24px;
-            font-size: 18px;
-            font-weight: 800;
-            border-radius: 12px;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            transition: all 0.3s ease;
-        }
-
-        .status.lifted {
-            background-color: #dcfce7;
-            color: #166534;
-            box-shadow: 0 0 15px rgba(34, 197, 94, 0.2);
-        }
-
-        .status.heavy {
-            background-color: #fee2e2;
-            color: #991b1b;
+            color: #6a9955;
+            text-align: center;
+            margin-top: 10px;
         }
     </style>
 </head>
 <body>
 
-<div class="container">
-    <h2>Lever Mechanics Lab</h2>
+<div class="workspace">
+    <h2>// lever_physics_sim.js</h2>
     
-    <canvas id="leverCanvas" width="800" height="340"></canvas>
+    <div id="canvas-container"></div>
 
-    <div class="controls">
+    <div class="panel">
         <div class="control-group">
-            <label>Fulcrum Position <span><span id="fulcrumVal">50</span>%</span></label>
+            <label>Fulcrum Position <span><span id="fVal">50</span>%</span></label>
             <input type="range" id="fulcrumSlider" min="10" max="90" value="50">
         </div>
         <div class="control-group">
-            <label>Load Position (Weight: 50kg) <span><span id="loadVal">20</span>%</span></label>
+            <label>Load Position <span><span id="lVal">20</span>%</span></label>
             <input type="range" id="loadSlider" min="5" max="95" value="20">
         </div>
         <div class="control-group">
-            <label>Force Position <span><span id="forceVal">80</span>%</span></label>
+            <label>Force Input Point <span><span id="fpVal">80</span>%</span></label>
             <input type="range" id="forcePosSlider" min="5" max="95" value="80">
         </div>
         <div class="control-group">
-            <label>Applied Force <span><span id="forceMagVal">30</span>N</span></label>
-            <input type="range" id="forceSlider" min="0" max="100" value="30">
+            <label>Force Magnitude (Engine Power) <span><span id="fmVal">5</span>x</span></label>
+            <input type="range" id="forceMagSlider" min="1" max="20" value="5">
         </div>
-    </div>
-
-    <div class="dashboard">
-        <div class="stats">
-            <div class="stat-box">
-                <span class="stat-label">Load Torque</span>
-                <span class="stat-value" id="loadTorqueDisplay">0</span>
-            </div>
-            <div class="stat-box">
-                <span class="stat-label">Force Torque</span>
-                <span class="stat-value" id="forceTorqueDisplay">0</span>
-            </div>
+        
+        <div class="action-row">
+            <button id="resetBtn">Reload Scene</button>
+            <button id="pushBtn">Hold to Apply Force</button>
         </div>
-        <div id="statusBox" class="status heavy">Too Heavy!</div>
+        <div class="hint">/* Tip: You can use your mouse to grab and drag the load box! */</div>
     </div>
 </div>
 
 <script>
-    const canvas = document.getElementById('leverCanvas');
-    const ctx = canvas.getContext('2d');
+    // Matter.js Aliases
+    const Engine = Matter.Engine,
+          Render = Matter.Render,
+          Runner = Matter.Runner,
+          Bodies = Matter.Bodies,
+          Composite = Matter.Composite,
+          Constraint = Matter.Constraint,
+          Mouse = Matter.Mouse,
+          MouseConstraint = Matter.MouseConstraint,
+          Events = Matter.Events,
+          Body = Matter.Body;
+
+    // Canvas Setup
+    const width = 800;
+    const height = 400;
+    
+    // Create Engine & World
+    const engine = Engine.create();
+    const render = Render.create({
+        element: document.getElementById('canvas-container'),
+        engine: engine,
+        options: {
+            width: width,
+            height: height,
+            wireframes: false,
+            background: '#1e1e1e',
+            pixelRatio: 2 // High-res rendering
+        }
+    });
+
+    // Global variables to track specific bodies
+    let currentBoard = null;
+    let isPushing = false;
 
     // DOM Elements
-    const inputs = {
-        fulcrum: document.getElementById('fulcrumSlider'),
-        load: document.getElementById('loadSlider'),
-        forcePos: document.getElementById('forcePosSlider'),
-        forceMag: document.getElementById('forceSlider')
+    const sliders = {
+        f: document.getElementById('fulcrumSlider'),
+        l: document.getElementById('loadSlider'),
+        fp: document.getElementById('forcePosSlider'),
+        fm: document.getElementById('forceMagSlider')
     };
     
     const displays = {
-        fulcrum: document.getElementById('fulcrumVal'),
-        load: document.getElementById('loadVal'),
-        forcePos: document.getElementById('forceVal'),
-        forceMag: document.getElementById('forceMagVal'),
-        loadTorque: document.getElementById('loadTorqueDisplay'),
-        forceTorque: document.getElementById('forceTorqueDisplay'),
-        status: document.getElementById('statusBox')
+        f: document.getElementById('fVal'),
+        l: document.getElementById('lVal'),
+        fp: document.getElementById('fpVal'),
+        fm: document.getElementById('fmVal')
     };
 
-    // Physics Constants
-    const LOAD_WEIGHT = 50;
-    const BOARD_Y = 240;
-    const BOARD_START_X = 60;
-    const BOARD_WIDTH = 680;
-
-    // Animation State
-    let currentTilt = 0;
-    let targetTilt = 0;
-
-    function drawGrid() {
-        ctx.strokeStyle = '#e2e8f0';
-        ctx.lineWidth = 1;
-        const gridSize = 40;
-        for (let x = 0; x <= canvas.width; x += gridSize) {
-            ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke();
-        }
-        for (let y = 0; y <= canvas.height; y += gridSize) {
-            ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke();
-        }
+    // Update Text Displays
+    function updateDisplays() {
+        displays.f.innerText = sliders.f.value;
+        displays.l.innerText = sliders.l.value;
+        displays.fp.innerText = sliders.fp.value;
+        displays.fm.innerText = sliders.fm.value;
     }
 
-    function updateAndDraw() {
-        // Get current slider values
-        const fulcrumPct = parseInt(inputs.fulcrum.value);
-        const loadPct = parseInt(inputs.load.value);
-        const forcePosPct = parseInt(inputs.forcePos.value);
-        const forceMag = parseInt(inputs.forceMag.value);
+    // Initialize the Scene based on slider values
+    function initScene() {
+        // Clear existing world
+        Composite.clear(engine.world);
+        Engine.clear(engine);
 
-        // Update UI Text
-        displays.fulcrum.innerText = fulcrumPct;
-        displays.load.innerText = loadPct;
-        displays.forcePos.innerText = forcePosPct;
-        displays.forceMag.innerText = forceMag;
+        // Physics Constants
+        const boardWidth = 640;
+        const boardHeight = 16;
+        const startX = 80;
+        const boardY = 280;
 
-        // Calculate Pixel Positions
-        const fulcrumX = BOARD_START_X + (fulcrumPct / 100) * BOARD_WIDTH;
-        const loadX = BOARD_START_X + (loadPct / 100) * BOARD_WIDTH;
-        const forceX = BOARD_START_X + (forcePosPct / 100) * BOARD_WIDTH;
-
-        // Calculate Physics
-        const loadDistance = Math.abs(loadPct - fulcrumPct);
-        const forceDistance = Math.abs(forcePosPct - fulcrumPct);
-
-        const loadTorque = LOAD_WEIGHT * loadDistance;
-        const forceTorque = forceMag * forceDistance;
-
-        displays.loadTorque.innerText = loadTorque.toFixed(0);
-        displays.forceTorque.innerText = forceTorque.toFixed(0);
-
-        const isLifted = forceTorque > loadTorque && loadDistance > 0;
-        const isBalanced = forceTorque === loadTorque || loadPct === fulcrumPct;
-
-        // Update Status Box
-        if (isLifted) {
-            displays.status.innerText = "Load Lifted!";
-            displays.status.className = "status lifted";
-        } else if (isBalanced) {
-            displays.status.innerText = "Balanced";
-            displays.status.className = "status lifted"; // Green for balanced too
-        } else {
-            displays.status.innerText = "Too Heavy!";
-            displays.status.className = "status heavy";
-        }
-
-        // Determine Target Tilt Angle for Animation
-        const maxTilt = 0.15;
-        if (isBalanced) {
-            targetTilt = 0;
-        } else if (loadX < fulcrumX) {
-            targetTilt = isLifted ? maxTilt : -maxTilt;
-        } else {
-            targetTilt = isLifted ? -maxTilt : maxTilt;
-        }
-
-        // LERP (Smoothly interpolate current tilt towards target tilt)
-        currentTilt += (targetTilt - currentTilt) * 0.1;
-
-        // --- RENDER ---
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        drawGrid();
-
-        ctx.save();
-        ctx.translate(fulcrumX, BOARD_Y);
-        ctx.rotate(currentTilt);
-
-        // Draw Lever Board (Smooth rounded rect)
-        ctx.fillStyle = '#cbd5e1'; // Board Shadow
-        if (ctx.roundRect) {
-            ctx.beginPath();
-            ctx.roundRect(-fulcrumX + BOARD_START_X, -2, BOARD_WIDTH, 14, 8);
-            ctx.fill();
-        }
+        // Calculate Pixel Positions from Percentages
+        const fPct = parseInt(sliders.f.value) / 100;
+        const lPct = parseInt(sliders.l.value) / 100;
         
-        ctx.fillStyle = '#334155'; // Main Board
-        if (ctx.roundRect) {
-            ctx.beginPath();
-            ctx.roundRect(-fulcrumX + BOARD_START_X, -8, BOARD_WIDTH, 14, 8);
-            ctx.fill();
-        }
+        const fulcrumX = startX + (fPct * boardWidth);
+        const loadX = startX + (lPct * boardWidth);
 
-        // Draw Load (Box)
-        const loadRelX = -fulcrumX + loadX;
-        ctx.shadowColor = 'rgba(0,0,0,0.2)';
-        ctx.shadowBlur = 10;
-        ctx.shadowOffsetY = 5;
-        
-        ctx.fillStyle = '#3b82f6';
-        if (ctx.roundRect) {
-            ctx.beginPath(); ctx.roundRect(loadRelX - 25, -68, 50, 60, 6); ctx.fill();
-        } else {
-            ctx.fillRect(loadRelX - 25, -68, 50, 60);
-        }
-        
-        ctx.shadowColor = 'transparent'; // Reset shadow
-        ctx.fillStyle = '#ffffff';
-        ctx.font = 'bold 14px Inter';
-        ctx.textAlign = 'center';
-        ctx.fillText('50kg', loadRelX, -33);
+        // 1. Static Ground
+        const ground = Bodies.rectangle(width/2, height + 25, width + 100, 50, { 
+            isStatic: true, 
+            render: { fillStyle: '#333333' } 
+        });
 
-        // Draw Force Arrow
-        const forceRelX = -fulcrumX + forceX;
-        const arrowHeight = Math.max(30, forceMag * 1.5);
-        const yOffset = -20;
-        
-        ctx.fillStyle = '#ef4444';
-        ctx.beginPath();
-        // Modern Arrow Shape
-        ctx.moveTo(forceRelX, yOffset - arrowHeight + 15);
-        ctx.lineTo(forceRelX - 12, yOffset - arrowHeight);
-        ctx.lineTo(forceRelX - 5, yOffset - arrowHeight);
-        ctx.lineTo(forceRelX - 5, yOffset - arrowHeight - forceMag);
-        ctx.lineTo(forceRelX + 5, yOffset - arrowHeight - forceMag);
-        ctx.lineTo(forceRelX + 5, yOffset - arrowHeight);
-        ctx.lineTo(forceRelX + 12, yOffset - arrowHeight);
-        ctx.closePath();
-        ctx.fill();
-        
-        ctx.fillStyle = '#ef4444';
-        ctx.font = 'bold 16px Inter';
-        ctx.fillText(forceMag + 'N', forceRelX, yOffset - arrowHeight - forceMag - 10);
+        // 2. Static Fulcrum (Triangle)
+        const fulcrum = Bodies.polygon(fulcrumX, boardY + 45, 3, 50, { 
+            isStatic: true, 
+            angle: -Math.PI/2, // point upwards
+            render: { fillStyle: '#569cd6' } 
+        });
 
-        ctx.restore();
+        // 3. Dynamic Board
+        const board = Bodies.rectangle(width/2, boardY, boardWidth, boardHeight, { 
+            render: { fillStyle: '#d4d4d4' },
+            density: 0.002, // Heavy enough to be stable
+            friction: 0.8,
+            restitution: 0.1 // Slight bounce
+        });
+        currentBoard = board;
 
-        // Draw Fulcrum (Base)
-        ctx.fillStyle = '#f59e0b';
-        ctx.beginPath();
-        ctx.moveTo(fulcrumX, BOARD_Y - 5);
-        ctx.lineTo(fulcrumX - 25, BOARD_Y + 45);
-        ctx.lineTo(fulcrumX + 25, BOARD_Y + 45);
-        ctx.fill();
+        // 4. Hinge Constraint (Pins board to fulcrum so it doesn't slide off)
+        const hinge = Constraint.create({
+            bodyA: fulcrum,
+            pointA: { x: 25, y: 0 }, // Offset to the tip of the triangle
+            bodyB: board,
+            pointB: { x: fulcrumX - (width/2), y: 0 }, // Attach at the fulcrum's relative X on the board
+            stiffness: 1,
+            length: 0,
+            render: { visible: false }
+        });
 
-        // Fulcrum Pivot Dot
-        ctx.fillStyle = '#ffffff';
-        ctx.beginPath();
-        ctx.arc(fulcrumX, BOARD_Y - 1, 4, 0, Math.PI * 2);
-        ctx.fill();
+        // 5. Dynamic Load Box
+        const loadBox = Bodies.rectangle(loadX, boardY - 50, 60, 60, {
+            render: { fillStyle: '#c586c0' },
+            density: 0.008, // Very heavy box
+            friction: 1.0,  // High friction so it sticks to the board
+            restitution: 0.1
+        });
 
-        // Animation Loop
-        requestAnimationFrame(updateAndDraw);
+        // Add everything to the world
+        Composite.add(engine.world, [ground, fulcrum, board, hinge, loadBox]);
+
+        // 6. Add Mouse Interactivity
+        const mouse = Mouse.create(render.canvas);
+        const mouseConstraint = MouseConstraint.create(engine, {
+            mouse: mouse,
+            constraint: {
+                stiffness: 0.2,
+                render: { visible: false }
+            }
+        });
+        Composite.add(engine.world, mouseConstraint);
+        render.mouse = mouse; // Keep mouse in sync with render scale
     }
 
-    // Start rendering
-    requestAnimationFrame(updateAndDraw);
+    // Force Application Logic
+    Events.on(engine, 'beforeUpdate', function() {
+        if (isPushing && currentBoard) {
+            // Calculate where to apply the force
+            const fpPct = parseInt(sliders.fp.value) / 100;
+            const fMag = parseInt(sliders.fm.value) * 0.005; // Scale to engine force values
+            
+            const boardWidth = 640;
+            const startX = 80;
+            const forceGlobalX = startX + (fpPct * boardWidth);
+            
+            // Apply physical force downwards at the specific world coordinate
+            Body.applyForce(currentBoard, { x: forceGlobalX, y: currentBoard.position.y }, { x: 0, y: fMag });
+        }
+    });
+
+    // Event Listeners
+    document.querySelectorAll('input').forEach(input => {
+        input.addEventListener('input', () => {
+            updateDisplays();
+            if(input.id !== 'forcePosSlider' && input.id !== 'forceMagSlider') {
+                initScene(); // Rebuild if structural geometry changes
+            }
+        });
+    });
+
+    document.getElementById('resetBtn').addEventListener('click', initScene);
+    
+    const pushBtn = document.getElementById('pushBtn');
+    pushBtn.addEventListener('mousedown', () => isPushing = true);
+    pushBtn.addEventListener('mouseup', () => isPushing = false);
+    pushBtn.addEventListener('mouseleave', () => isPushing = false);
+    
+    // Touch support for mobile/tablets
+    pushBtn.addEventListener('touchstart', (e) => { e.preventDefault(); isPushing = true; });
+    pushBtn.addEventListener('touchend', (e) => { e.preventDefault(); isPushing = false; });
+
+    // Boot Up
+    updateDisplays();
+    initScene();
+    Render.run(render);
+    
+    // Create runner
+    const runner = Runner.create();
+    Runner.run(runner, engine);
 
 </script>
-
 </body>
 </html>
