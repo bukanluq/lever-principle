@@ -181,15 +181,14 @@
         </div>
         
         <div class="action-row">
-            <button id="resetBtn">Reload Scene</button>
+            <button id="resetBtn">Reset Positions</button>
             <button id="pushBtn">Hold to Apply Force</button>
         </div>
-        <div class="hint">💡 Tip: You can use your mouse to grab, drag, and drop the red load box!</div>
+        <div class="hint">💡 Position your load and fulcrum, then apply force to test the lever!</div>
     </div>
 </div>
 
 <script>
-    // Matter.js Aliases
     const Engine = Matter.Engine,
           Render = Matter.Render,
           Runner = Matter.Runner,
@@ -201,11 +200,9 @@
           Events = Matter.Events,
           Body = Matter.Body;
 
-    // Canvas Setup
     const width = 800;
     const height = 400;
     
-    // Create Engine & World
     const engine = Engine.create();
     const render = Render.create({
         element: document.getElementById('canvas-container'),
@@ -215,14 +212,13 @@
             height: height,
             wireframes: false,
             background: '#fafafa',
-            pixelRatio: 2
+            pixelRatio: window.devicePixelRatio || 1
         }
     });
 
     let currentBoard = null;
     let isPushing = false;
 
-    // DOM Elements
     const sliders = {
         f: document.getElementById('fulcrumSlider'),
         l: document.getElementById('loadSlider'),
@@ -259,32 +255,33 @@
         const fulcrumX = startX + (fPct * boardWidth);
         const loadX = startX + (lPct * boardWidth);
 
-        // 1. Static Ground
+        // Ground
         const ground = Bodies.rectangle(width/2, height + 25, width + 100, 50, { 
             isStatic: true, 
             render: { fillStyle: '#e2e8f0' } 
         });
 
-        // 2. Static Fulcrum (Using Trapezoid for stability)
+        // Fulcrum
         const fulcrum = Bodies.trapezoid(fulcrumX, boardY + 30, 60, 60, 1, { 
             isStatic: true, 
-            render: { fillStyle: '#3b82f6' } // Bright Blue
+            render: { fillStyle: '#3b82f6' } 
         });
 
-        // 3. Dynamic Board
+        // Board
         const board = Bodies.rectangle(width/2, boardY, boardWidth, boardHeight, { 
-            render: { fillStyle: '#fbbf24' }, // Wood/Amber
+            render: { fillStyle: '#fbbf24' }, 
             density: 0.002, 
             friction: 0.8,
             restitution: 0.1,
-            chamfer: { radius: 4 } // Rounded edges
+            chamfer: { radius: 4 },
+            collisionFilter: { group: -1 } // Prevents self-collision issues with pinned objects
         });
         currentBoard = board;
 
-        // 4. Hinge Constraint
+        // Board to Fulcrum Hinge
         const hinge = Constraint.create({
             bodyA: fulcrum,
-            pointA: { x: 0, y: -30 }, // Top tip of the trapezoid
+            pointA: { x: 0, y: -30 }, 
             bodyB: board,
             pointB: { x: fulcrumX - (width/2), y: 0 }, 
             stiffness: 1,
@@ -292,41 +289,100 @@
             render: { visible: false }
         });
 
-        // 5. Dynamic Load Box
-        const loadBox = Bodies.rectangle(loadX, boardY - 50, 60, 60, {
-            render: { fillStyle: '#ef4444' }, // Bright Red
-            density: 0.008, 
+        // Load Box
+        const boxSize = 60;
+        const loadBox = Bodies.rectangle(loadX, boardY - (boxSize/2) - (boardHeight/2), boxSize, boxSize, {
+            render: { fillStyle: '#ef4444' }, 
+            density: 0.015, // Made heavier
             friction: 1.0,  
-            restitution: 0.1,
-            chamfer: { radius: 6 }
+            restitution: 0.0, // No bounce
+            chamfer: { radius: 6 },
+            collisionFilter: { group: -1 }
         });
 
-        Composite.add(engine.world, [ground, fulcrum, board, hinge, loadBox]);
+        // PIN THE BOX TO THE BOARD (The Superglue fix)
+        // This ensures the box acts as true mass but can never slide or fly off
+        const boxPin1 = Constraint.create({
+            bodyA: board,
+            pointA: { x: loadX - (width/2) - 20, y: -8 },
+            bodyB: loadBox,
+            pointB: { x: -20, y: boxSize/2 },
+            stiffness: 1,
+            length: 0,
+            render: { visible: false }
+        });
+        const boxPin2 = Constraint.create({
+            bodyA: board,
+            pointA: { x: loadX - (width/2) + 20, y: -8 },
+            bodyB: loadBox,
+            pointB: { x: 20, y: boxSize/2 },
+            stiffness: 1,
+            length: 0,
+            render: { visible: false }
+        });
 
-        // 6. Mouse Interactivity
+        Composite.add(engine.world, [ground, fulcrum, board, hinge, loadBox, boxPin1, boxPin2]);
+
+        // Mouse (still active to click things, but dragging the box won't tear it off)
         const mouse = Mouse.create(render.canvas);
         const mouseConstraint = MouseConstraint.create(engine, {
             mouse: mouse,
-            constraint: {
-                stiffness: 0.2,
-                render: { visible: false }
-            }
+            constraint: { stiffness: 0.2, render: { visible: false } }
         });
         Composite.add(engine.world, mouseConstraint);
         render.mouse = mouse; 
     }
 
-    // Force Application Logic
+    // Force Application
     Events.on(engine, 'beforeUpdate', function() {
         if (isPushing && currentBoard) {
             const fpPct = parseInt(sliders.fp.value) / 100;
-            const fMag = parseInt(sliders.fm.value) * 0.005; 
-            
+            const fMag = parseInt(sliders.fm.value) * 0.01; // Increased visual scale
             const boardWidth = 640;
             const startX = 80;
             const forceGlobalX = startX + (fpPct * boardWidth);
             
             Body.applyForce(currentBoard, { x: forceGlobalX, y: currentBoard.position.y }, { x: 0, y: fMag });
+        }
+    });
+
+    // DRAW THE VISUAL ARROW
+    Events.on(render, 'afterRender', function() {
+        if (isPushing && currentBoard) {
+            const ctx = render.context;
+            const fpPct = parseInt(sliders.fp.value) / 100;
+            const fmMag = parseInt(sliders.fm.value);
+            const boardWidth = 640;
+            const startX = 80;
+            const forceGlobalX = startX + (fpPct * boardWidth);
+            
+            // Calculate height of board at the specific push point using trigonometry
+            const dx = forceGlobalX - currentBoard.position.x;
+            const forceGlobalY = currentBoard.position.y + Math.tan(currentBoard.angle) * dx;
+
+            // Draw Custom Arrow
+            const arrowLength = 30 + (fmMag * 3); // Arrow size scales with force
+            
+            ctx.beginPath();
+            ctx.moveTo(forceGlobalX, forceGlobalY - arrowLength - 20); // Top of stem
+            ctx.lineTo(forceGlobalX, forceGlobalY - 20); // Bottom of stem
+            
+            // Arrow head
+            ctx.moveTo(forceGlobalX - 10, forceGlobalY - 30);
+            ctx.lineTo(forceGlobalX, forceGlobalY - 15);
+            ctx.lineTo(forceGlobalX + 10, forceGlobalY - 30);
+            
+            ctx.lineWidth = 6;
+            ctx.strokeStyle = '#ef4444';
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            ctx.stroke();
+
+            // Add Force Text
+            ctx.fillStyle = '#ef4444';
+            ctx.font = 'bold 16px Nunito';
+            ctx.textAlign = 'center';
+            ctx.fillText(fmMag + 'x Force', forceGlobalX, forceGlobalY - arrowLength - 30);
         }
     });
 
@@ -346,18 +402,15 @@
     pushBtn.addEventListener('mousedown', () => isPushing = true);
     pushBtn.addEventListener('mouseup', () => isPushing = false);
     pushBtn.addEventListener('mouseleave', () => isPushing = false);
-    
     pushBtn.addEventListener('touchstart', (e) => { e.preventDefault(); isPushing = true; }, {passive: false});
     pushBtn.addEventListener('touchend', (e) => { e.preventDefault(); isPushing = false; }, {passive: false});
 
-    // Boot Up
     updateDisplays();
     initScene();
     Render.run(render);
     
     const runner = Runner.create();
     Runner.run(runner, engine);
-
 </script>
 </body>
 </html>
