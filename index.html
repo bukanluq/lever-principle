@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Physics-Based Lever Sandbox</title>
+    <title>Lever Principle</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;900&display=swap" rel="stylesheet">
     <style>
@@ -27,26 +27,54 @@
             flex-direction: column;
             align-items: center;
             margin: 0;
-            padding: 40px 20px;
+            padding: 20px;
+            min-height: 100vh;
         }
 
         .workspace {
             background: var(--card-bg);
-            padding: 30px;
+            padding: 25px;
             border-radius: 16px;
             box-shadow: 0 10px 25px rgba(0,0,0,0.05);
-            max-width: 840px;
-            width: 100%;
+            width: 95vw;
+            max-width: 1400px; /* Melebar untuk skrin besar */
+            display: flex;
+            flex-direction: column;
         }
 
         h2 {
             margin-top: 0;
             color: var(--text-main);
             font-weight: 900;
-            font-size: 28px;
+            font-size: 32px;
             border-bottom: 2px solid var(--border);
             padding-bottom: 15px;
             text-align: center;
+            margin-bottom: 25px;
+        }
+
+        .main-layout {
+            display: flex;
+            flex-direction: column;
+            gap: 25px;
+        }
+
+        /* Susun atur Landskap bila skrin besar */
+        @media (min-width: 1024px) {
+            .main-layout {
+                flex-direction: row;
+                align-items: stretch;
+            }
+            #canvas-container {
+                flex: 2.5; /* Kanvas ambil ruang lebih besar */
+                margin-bottom: 0 !important;
+            }
+            .panel {
+                flex: 1;
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+            }
         }
 
         #canvas-container {
@@ -54,16 +82,31 @@
             background-color: #fafafa;
             border-radius: 12px;
             overflow: hidden;
-            margin-bottom: 25px;
             display: flex;
             justify-content: center;
+            align-items: center;
             box-shadow: inset 0 2px 4px rgba(0,0,0,0.02);
+            margin-bottom: 20px;
+        }
+
+        /* Jadikan kanvas responsif mengikut saiz bekasnya */
+        #canvas-container canvas {
+            width: 100% !important;
+            height: auto !important;
+            aspect-ratio: 16 / 8;
+            display: block;
         }
 
         .panel {
             display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 24px;
+            grid-template-columns: 1fr;
+            gap: 15px;
+        }
+
+        @media (min-width: 600px) and (max-width: 1023px) {
+            .panel {
+                grid-template-columns: 1fr 1fr; /* Dua lajur untuk tablet */
+            }
         }
 
         .control-group {
@@ -95,15 +138,15 @@
             -webkit-appearance: none;
             width: 100%;
             background: #cbd5e1;
-            height: 6px;
-            border-radius: 3px;
+            height: 8px;
+            border-radius: 4px;
             outline: none;
         }
 
         input[type="range"]::-webkit-slider-thumb {
             -webkit-appearance: none;
-            width: 20px;
-            height: 20px;
+            width: 24px;
+            height: 24px;
             border-radius: 50%;
             background: var(--primary);
             cursor: pointer;
@@ -116,75 +159,90 @@
         }
 
         .action-row {
-            grid-column: span 2;
             display: flex;
+            flex-direction: column;
             gap: 15px;
             margin-top: 10px;
         }
 
+        @media (min-width: 600px) and (max-width: 1023px) {
+            .action-row {
+                grid-column: span 2;
+                flex-direction: row;
+            }
+        }
+
         button {
-            flex: 1;
-            padding: 14px;
+            width: 100%;
+            padding: 16px;
             background-color: var(--primary);
             color: white;
             border: none;
             border-radius: 8px;
             font-family: inherit;
-            font-size: 16px;
-            font-weight: 700;
+            font-size: 18px;
+            font-weight: 800;
             cursor: pointer;
             transition: all 0.2s;
             box-shadow: 0 4px 6px rgba(59, 130, 246, 0.2);
         }
 
-        button:hover { background-color: var(--primary-hover); transform: translateY(-1px); }
+        button:hover { background-color: var(--primary-hover); transform: translateY(-2px); }
         button:active { transform: translateY(1px); box-shadow: none; }
         
         #pushBtn { 
             background-color: var(--accent); 
-            box-shadow: 0 4px 6px rgba(239, 68, 68, 0.2);
+            box-shadow: 0 4px 6px rgba(239, 68, 68, 0.3);
+            text-transform: uppercase;
+            letter-spacing: 1px;
         }
         #pushBtn:hover { background-color: var(--accent-hover); }
 
         .hint {
-            grid-column: span 2;
             font-size: 14px;
             color: var(--text-light);
             text-align: center;
             font-weight: 700;
+            margin-top: 10px;
+        }
+        
+        @media (min-width: 600px) and (max-width: 1023px) {
+            .hint { grid-column: span 2; }
         }
     </style>
 </head>
 <body>
 
 <div class="workspace">
-    <h2>Interactive Lever Lab</h2>
+    <h2>Lever Principle</h2>
     
-    <div id="canvas-container"></div>
+    <div class="main-layout">
+        <div id="canvas-container"></div>
 
-    <div class="panel">
-        <div class="control-group">
-            <label>Fulcrum Position <span><span id="fVal">50</span>%</span></label>
-            <input type="range" id="fulcrumSlider" min="10" max="90" value="50">
+        <div class="panel">
+            <div class="control-group">
+                <label>Fulcrum Position <span><span id="fVal">50</span>%</span></label>
+                <input type="range" id="fulcrumSlider" min="10" max="90" value="50">
+            </div>
+            <div class="control-group">
+                <label>Load Position <span><span id="lVal">20</span>%</span></label>
+                <input type="range" id="loadSlider" min="5" max="95" value="20">
+            </div>
+            <div class="control-group">
+                <label>Force Input Point <span><span id="fpVal">80</span>%</span></label>
+                <input type="range" id="forcePosSlider" min="5" max="95" value="80">
+            </div>
+            <div class="control-group">
+                <label>Force Magnitude <span><span id="fmVal">5</span>x</span></label>
+                <input type="range" id="forceMagSlider" min="1" max="20" value="5">
+            </div>
+            
+            <div class="action-row">
+                <button id="resetBtn">Reset</button>
+                <button id="pushBtn">Apply Force</button>
+            </div>
+            <div class="hint">💡 Susun fulcrum & load, kemudian tekan Apply Force!</div>
         </div>
-        <div class="control-group">
-            <label>Load Position <span><span id="lVal">20</span>%</span></label>
-            <input type="range" id="loadSlider" min="5" max="95" value="20">
-        </div>
-        <div class="control-group">
-            <label>Force Input Point <span><span id="fpVal">80</span>%</span></label>
-            <input type="range" id="forcePosSlider" min="5" max="95" value="80">
-        </div>
-        <div class="control-group">
-            <label>Force Magnitude <span><span id="fmVal">5</span>x</span></label>
-            <input type="range" id="forceMagSlider" min="1" max="20" value="5">
-        </div>
-        
-        <div class="action-row">
-            <button id="resetBtn">Reset Positions</button>
-            <button id="pushBtn">Hold to Apply Force</button>
-        </div>
-        <div class="hint">💡 Position your load and fulcrum, then apply force to test the lever!</div>
     </div>
 </div>
 
@@ -200,8 +258,9 @@
           Events = Matter.Events,
           Body = Matter.Body;
 
-    const width = 800;
-    const height = 400;
+    // Internal resolution dibesarkan untuk skrin besar (16:8 aspect ratio)
+    const width = 1600;
+    const height = 800;
     
     const engine = Engine.create();
     const render = Render.create({
@@ -244,10 +303,11 @@
         Composite.clear(engine.world);
         Engine.clear(engine);
 
-        const boardWidth = 640;
-        const boardHeight = 16;
-        const startX = 80;
-        const boardY = 280;
+        // Skala komponen dibesarkan sejajar dengan resolusi 1600x800
+        const boardWidth = 1200;
+        const boardHeight = 24;
+        const startX = 200;
+        const boardY = 550;
 
         const fPct = parseInt(sliders.f.value) / 100;
         const lPct = parseInt(sliders.l.value) / 100;
@@ -256,13 +316,13 @@
         const loadX = startX + (lPct * boardWidth);
 
         // Ground
-        const ground = Bodies.rectangle(width/2, height + 25, width + 100, 50, { 
+        const ground = Bodies.rectangle(width/2, height + 50, width + 200, 100, { 
             isStatic: true, 
             render: { fillStyle: '#e2e8f0' } 
         });
 
         // Fulcrum
-        const fulcrum = Bodies.trapezoid(fulcrumX, boardY + 30, 60, 60, 1, { 
+        const fulcrum = Bodies.trapezoid(fulcrumX, boardY + 60, 100, 100, 1, { 
             isStatic: true, 
             render: { fillStyle: '#3b82f6' } 
         });
@@ -273,15 +333,15 @@
             density: 0.002, 
             friction: 0.8,
             restitution: 0.1,
-            chamfer: { radius: 4 },
-            collisionFilter: { group: -1 } // Prevents self-collision issues with pinned objects
+            chamfer: { radius: 6 },
+            collisionFilter: { group: -1 }
         });
         currentBoard = board;
 
         // Board to Fulcrum Hinge
         const hinge = Constraint.create({
             bodyA: fulcrum,
-            pointA: { x: 0, y: -30 }, 
+            pointA: { x: 0, y: -50 }, 
             bodyB: board,
             pointB: { x: fulcrumX - (width/2), y: 0 }, 
             stiffness: 1,
@@ -290,32 +350,31 @@
         });
 
         // Load Box
-        const boxSize = 60;
+        const boxSize = 100;
         const loadBox = Bodies.rectangle(loadX, boardY - (boxSize/2) - (boardHeight/2), boxSize, boxSize, {
             render: { fillStyle: '#ef4444' }, 
-            density: 0.015, // Made heavier
+            density: 0.015, 
             friction: 1.0,  
-            restitution: 0.0, // No bounce
-            chamfer: { radius: 6 },
+            restitution: 0.0, 
+            chamfer: { radius: 10 },
             collisionFilter: { group: -1 }
         });
 
-        // PIN THE BOX TO THE BOARD (The Superglue fix)
-        // This ensures the box acts as true mass but can never slide or fly off
+        // Pin Box to Board
         const boxPin1 = Constraint.create({
             bodyA: board,
-            pointA: { x: loadX - (width/2) - 20, y: -8 },
+            pointA: { x: loadX - (width/2) - 30, y: -12 },
             bodyB: loadBox,
-            pointB: { x: -20, y: boxSize/2 },
+            pointB: { x: -30, y: boxSize/2 },
             stiffness: 1,
             length: 0,
             render: { visible: false }
         });
         const boxPin2 = Constraint.create({
             bodyA: board,
-            pointA: { x: loadX - (width/2) + 20, y: -8 },
+            pointA: { x: loadX - (width/2) + 30, y: -12 },
             bodyB: loadBox,
-            pointB: { x: 20, y: boxSize/2 },
+            pointB: { x: 30, y: boxSize/2 },
             stiffness: 1,
             length: 0,
             render: { visible: false }
@@ -323,7 +382,6 @@
 
         Composite.add(engine.world, [ground, fulcrum, board, hinge, loadBox, boxPin1, boxPin2]);
 
-        // Mouse (still active to click things, but dragging the box won't tear it off)
         const mouse = Mouse.create(render.canvas);
         const mouseConstraint = MouseConstraint.create(engine, {
             mouse: mouse,
@@ -333,60 +391,59 @@
         render.mouse = mouse; 
     }
 
-    // Force Application
+    // Apply Force Physics
     Events.on(engine, 'beforeUpdate', function() {
         if (isPushing && currentBoard) {
             const fpPct = parseInt(sliders.fp.value) / 100;
-            const fMag = parseInt(sliders.fm.value) * 0.01; // Increased visual scale
-            const boardWidth = 640;
-            const startX = 80;
+            const fMag = parseInt(sliders.fm.value) * 0.03; // Dilaraskan untuk skala baru
+            const boardWidth = 1200;
+            const startX = 200;
             const forceGlobalX = startX + (fpPct * boardWidth);
             
             Body.applyForce(currentBoard, { x: forceGlobalX, y: currentBoard.position.y }, { x: 0, y: fMag });
         }
     });
 
-    // DRAW THE VISUAL ARROW
+    // DRAW VISUAL ARROW (Sekarang sentiasa nampak!)
     Events.on(render, 'afterRender', function() {
-        if (isPushing && currentBoard) {
+        if (currentBoard) {
             const ctx = render.context;
             const fpPct = parseInt(sliders.fp.value) / 100;
             const fmMag = parseInt(sliders.fm.value);
-            const boardWidth = 640;
-            const startX = 80;
+            const boardWidth = 1200;
+            const startX = 200;
             const forceGlobalX = startX + (fpPct * boardWidth);
             
-            // Calculate height of board at the specific push point using trigonometry
+            // Kira posisi menegak atas papan
             const dx = forceGlobalX - currentBoard.position.x;
             const forceGlobalY = currentBoard.position.y + Math.tan(currentBoard.angle) * dx;
 
-            // Draw Custom Arrow
-            const arrowLength = 30 + (fmMag * 3); // Arrow size scales with force
+            const arrowLength = 50 + (fmMag * 5); 
             
             ctx.beginPath();
-            ctx.moveTo(forceGlobalX, forceGlobalY - arrowLength - 20); // Top of stem
-            ctx.lineTo(forceGlobalX, forceGlobalY - 20); // Bottom of stem
+            ctx.moveTo(forceGlobalX, forceGlobalY - arrowLength - 30);
+            ctx.lineTo(forceGlobalX, forceGlobalY - 30);
             
-            // Arrow head
-            ctx.moveTo(forceGlobalX - 10, forceGlobalY - 30);
-            ctx.lineTo(forceGlobalX, forceGlobalY - 15);
-            ctx.lineTo(forceGlobalX + 10, forceGlobalY - 30);
+            // Kepala panah
+            ctx.moveTo(forceGlobalX - 15, forceGlobalY - 45);
+            ctx.lineTo(forceGlobalX, forceGlobalY - 25);
+            ctx.lineTo(forceGlobalX + 15, forceGlobalY - 45);
             
-            ctx.lineWidth = 6;
-            ctx.strokeStyle = '#ef4444';
+            // Gaya visual: Pudar bila tak tekan, Merah Terang bila tekan
+            ctx.lineWidth = isPushing ? 10 : 4;
+            ctx.strokeStyle = isPushing ? '#ef4444' : 'rgba(239, 68, 68, 0.3)';
             ctx.lineCap = 'round';
             ctx.lineJoin = 'round';
             ctx.stroke();
 
-            // Add Force Text
-            ctx.fillStyle = '#ef4444';
-            ctx.font = 'bold 16px Nunito';
+            // Teks daya
+            ctx.fillStyle = isPushing ? '#ef4444' : 'rgba(239, 68, 68, 0.5)';
+            ctx.font = 'bold 24px Nunito';
             ctx.textAlign = 'center';
-            ctx.fillText(fmMag + 'x Force', forceGlobalX, forceGlobalY - arrowLength - 30);
+            ctx.fillText(fmMag + 'x Force', forceGlobalX, forceGlobalY - arrowLength - 45);
         }
     });
 
-    // Event Listeners
     document.querySelectorAll('input').forEach(input => {
         input.addEventListener('input', () => {
             updateDisplays();
