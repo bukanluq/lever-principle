@@ -5,127 +5,160 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Physics-Based Lever Sandbox</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;900&display=swap" rel="stylesheet">
     <style>
+        :root {
+            --bg-page: #f0f4f8;
+            --card-bg: #ffffff;
+            --text-main: #334155;
+            --text-light: #64748b;
+            --primary: #3b82f6;
+            --primary-hover: #2563eb;
+            --accent: #ef4444;
+            --accent-hover: #dc2626;
+            --border: #e2e8f0;
+        }
+
         body {
-            font-family: 'Consolas', 'Courier New', monospace;
-            background-color: #1e1e1e;
-            color: #d4d4d4;
+            font-family: 'Nunito', sans-serif;
+            background-color: var(--bg-page);
+            color: var(--text-main);
             display: flex;
             flex-direction: column;
             align-items: center;
             margin: 0;
-            padding: 30px;
+            padding: 40px 20px;
         }
 
         .workspace {
-            background: #252526;
-            padding: 20px;
-            border-radius: 8px;
-            border: 1px solid #333;
-            box-shadow: 0 15px 30px rgba(0,0,0,0.5);
+            background: var(--card-bg);
+            padding: 30px;
+            border-radius: 16px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.05);
             max-width: 840px;
             width: 100%;
         }
 
         h2 {
             margin-top: 0;
-            color: #569cd6;
-            font-weight: normal;
-            border-bottom: 1px solid #333;
-            padding-bottom: 10px;
+            color: var(--text-main);
+            font-weight: 900;
+            font-size: 28px;
+            border-bottom: 2px solid var(--border);
+            padding-bottom: 15px;
+            text-align: center;
         }
 
         #canvas-container {
-            border: 1px solid #444;
-            background-color: #1e1e1e;
-            border-radius: 4px;
+            border: 2px solid var(--border);
+            background-color: #fafafa;
+            border-radius: 12px;
             overflow: hidden;
-            margin-bottom: 20px;
+            margin-bottom: 25px;
             display: flex;
             justify-content: center;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.02);
         }
 
         .panel {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 20px;
-            background: #1e1e1e;
-            padding: 15px;
-            border-radius: 4px;
-            border: 1px solid #333;
+            gap: 24px;
         }
 
         .control-group {
             display: flex;
             flex-direction: column;
+            background: #f8fafc;
+            padding: 15px;
+            border-radius: 10px;
+            border: 1px solid var(--border);
         }
 
         label {
             display: flex;
             justify-content: space-between;
+            font-size: 15px;
+            font-weight: 700;
+            color: var(--text-main);
+            margin-bottom: 12px;
+        }
+
+        label span {
+            background: var(--border);
+            padding: 2px 8px;
+            border-radius: 6px;
             font-size: 13px;
-            color: #9cdcfe;
-            margin-bottom: 8px;
         }
 
         input[type="range"] {
             -webkit-appearance: none;
             width: 100%;
-            background: #333;
-            height: 4px;
-            border-radius: 2px;
+            background: #cbd5e1;
+            height: 6px;
+            border-radius: 3px;
             outline: none;
         }
 
         input[type="range"]::-webkit-slider-thumb {
             -webkit-appearance: none;
-            width: 14px;
-            height: 14px;
+            width: 20px;
+            height: 20px;
             border-radius: 50%;
-            background: #007acc;
+            background: var(--primary);
             cursor: pointer;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            transition: transform 0.1s;
+        }
+
+        input[type="range"]::-webkit-slider-thumb:hover {
+            transform: scale(1.15);
         }
 
         .action-row {
             grid-column: span 2;
             display: flex;
-            gap: 10px;
+            gap: 15px;
             margin-top: 10px;
         }
 
         button {
             flex: 1;
-            padding: 12px;
-            background-color: #007acc;
+            padding: 14px;
+            background-color: var(--primary);
             color: white;
             border: none;
-            border-radius: 4px;
+            border-radius: 8px;
             font-family: inherit;
-            font-size: 14px;
+            font-size: 16px;
+            font-weight: 700;
             cursor: pointer;
-            transition: background 0.2s;
+            transition: all 0.2s;
+            box-shadow: 0 4px 6px rgba(59, 130, 246, 0.2);
         }
 
-        button:hover { background-color: #0098ff; }
-        button:active { background-color: #005a9e; }
+        button:hover { background-color: var(--primary-hover); transform: translateY(-1px); }
+        button:active { transform: translateY(1px); box-shadow: none; }
         
-        #pushBtn { background-color: #ce9178; color: #1e1e1e; font-weight: bold; }
-        #pushBtn:hover { background-color: #d16969; color: white;}
-        #pushBtn:active { background-color: #f44336; }
+        #pushBtn { 
+            background-color: var(--accent); 
+            box-shadow: 0 4px 6px rgba(239, 68, 68, 0.2);
+        }
+        #pushBtn:hover { background-color: var(--accent-hover); }
 
         .hint {
             grid-column: span 2;
-            font-size: 12px;
-            color: #6a9955;
+            font-size: 14px;
+            color: var(--text-light);
             text-align: center;
-            margin-top: 10px;
+            font-weight: 700;
         }
     </style>
 </head>
 <body>
 
 <div class="workspace">
-    <h2>// lever_physics_sim.js</h2>
+    <h2>Interactive Lever Lab</h2>
     
     <div id="canvas-container"></div>
 
@@ -143,7 +176,7 @@
             <input type="range" id="forcePosSlider" min="5" max="95" value="80">
         </div>
         <div class="control-group">
-            <label>Force Magnitude (Engine Power) <span><span id="fmVal">5</span>x</span></label>
+            <label>Force Magnitude <span><span id="fmVal">5</span>x</span></label>
             <input type="range" id="forceMagSlider" min="1" max="20" value="5">
         </div>
         
@@ -151,7 +184,7 @@
             <button id="resetBtn">Reload Scene</button>
             <button id="pushBtn">Hold to Apply Force</button>
         </div>
-        <div class="hint">/* Tip: You can use your mouse to grab and drag the load box! */</div>
+        <div class="hint">💡 Tip: You can use your mouse to grab, drag, and drop the red load box!</div>
     </div>
 </div>
 
@@ -181,12 +214,11 @@
             width: width,
             height: height,
             wireframes: false,
-            background: '#1e1e1e',
-            pixelRatio: 2 // High-res rendering
+            background: '#fafafa',
+            pixelRatio: 2
         }
     });
 
-    // Global variables to track specific bodies
     let currentBoard = null;
     let isPushing = false;
 
@@ -205,7 +237,6 @@
         fm: document.getElementById('fmVal')
     };
 
-    // Update Text Displays
     function updateDisplays() {
         displays.f.innerText = sliders.f.value;
         displays.l.innerText = sliders.l.value;
@@ -213,19 +244,15 @@
         displays.fm.innerText = sliders.fm.value;
     }
 
-    // Initialize the Scene based on slider values
     function initScene() {
-        // Clear existing world
         Composite.clear(engine.world);
         Engine.clear(engine);
 
-        // Physics Constants
         const boardWidth = 640;
         const boardHeight = 16;
         const startX = 80;
         const boardY = 280;
 
-        // Calculate Pixel Positions from Percentages
         const fPct = parseInt(sliders.f.value) / 100;
         const lPct = parseInt(sliders.l.value) / 100;
         
@@ -235,31 +262,31 @@
         // 1. Static Ground
         const ground = Bodies.rectangle(width/2, height + 25, width + 100, 50, { 
             isStatic: true, 
-            render: { fillStyle: '#333333' } 
+            render: { fillStyle: '#e2e8f0' } 
         });
 
-        // 2. Static Fulcrum (Triangle)
-        const fulcrum = Bodies.polygon(fulcrumX, boardY + 45, 3, 50, { 
+        // 2. Static Fulcrum (Using Trapezoid for stability)
+        const fulcrum = Bodies.trapezoid(fulcrumX, boardY + 30, 60, 60, 1, { 
             isStatic: true, 
-            angle: -Math.PI/2, // point upwards
-            render: { fillStyle: '#569cd6' } 
+            render: { fillStyle: '#3b82f6' } // Bright Blue
         });
 
         // 3. Dynamic Board
         const board = Bodies.rectangle(width/2, boardY, boardWidth, boardHeight, { 
-            render: { fillStyle: '#d4d4d4' },
-            density: 0.002, // Heavy enough to be stable
+            render: { fillStyle: '#fbbf24' }, // Wood/Amber
+            density: 0.002, 
             friction: 0.8,
-            restitution: 0.1 // Slight bounce
+            restitution: 0.1,
+            chamfer: { radius: 4 } // Rounded edges
         });
         currentBoard = board;
 
-        // 4. Hinge Constraint (Pins board to fulcrum so it doesn't slide off)
+        // 4. Hinge Constraint
         const hinge = Constraint.create({
             bodyA: fulcrum,
-            pointA: { x: 25, y: 0 }, // Offset to the tip of the triangle
+            pointA: { x: 0, y: -30 }, // Top tip of the trapezoid
             bodyB: board,
-            pointB: { x: fulcrumX - (width/2), y: 0 }, // Attach at the fulcrum's relative X on the board
+            pointB: { x: fulcrumX - (width/2), y: 0 }, 
             stiffness: 1,
             length: 0,
             render: { visible: false }
@@ -267,16 +294,16 @@
 
         // 5. Dynamic Load Box
         const loadBox = Bodies.rectangle(loadX, boardY - 50, 60, 60, {
-            render: { fillStyle: '#c586c0' },
-            density: 0.008, // Very heavy box
-            friction: 1.0,  // High friction so it sticks to the board
-            restitution: 0.1
+            render: { fillStyle: '#ef4444' }, // Bright Red
+            density: 0.008, 
+            friction: 1.0,  
+            restitution: 0.1,
+            chamfer: { radius: 6 }
         });
 
-        // Add everything to the world
         Composite.add(engine.world, [ground, fulcrum, board, hinge, loadBox]);
 
-        // 6. Add Mouse Interactivity
+        // 6. Mouse Interactivity
         const mouse = Mouse.create(render.canvas);
         const mouseConstraint = MouseConstraint.create(engine, {
             mouse: mouse,
@@ -286,21 +313,19 @@
             }
         });
         Composite.add(engine.world, mouseConstraint);
-        render.mouse = mouse; // Keep mouse in sync with render scale
+        render.mouse = mouse; 
     }
 
     // Force Application Logic
     Events.on(engine, 'beforeUpdate', function() {
         if (isPushing && currentBoard) {
-            // Calculate where to apply the force
             const fpPct = parseInt(sliders.fp.value) / 100;
-            const fMag = parseInt(sliders.fm.value) * 0.005; // Scale to engine force values
+            const fMag = parseInt(sliders.fm.value) * 0.005; 
             
             const boardWidth = 640;
             const startX = 80;
             const forceGlobalX = startX + (fpPct * boardWidth);
             
-            // Apply physical force downwards at the specific world coordinate
             Body.applyForce(currentBoard, { x: forceGlobalX, y: currentBoard.position.y }, { x: 0, y: fMag });
         }
     });
@@ -310,7 +335,7 @@
         input.addEventListener('input', () => {
             updateDisplays();
             if(input.id !== 'forcePosSlider' && input.id !== 'forceMagSlider') {
-                initScene(); // Rebuild if structural geometry changes
+                initScene(); 
             }
         });
     });
@@ -322,16 +347,14 @@
     pushBtn.addEventListener('mouseup', () => isPushing = false);
     pushBtn.addEventListener('mouseleave', () => isPushing = false);
     
-    // Touch support for mobile/tablets
-    pushBtn.addEventListener('touchstart', (e) => { e.preventDefault(); isPushing = true; });
-    pushBtn.addEventListener('touchend', (e) => { e.preventDefault(); isPushing = false; });
+    pushBtn.addEventListener('touchstart', (e) => { e.preventDefault(); isPushing = true; }, {passive: false});
+    pushBtn.addEventListener('touchend', (e) => { e.preventDefault(); isPushing = false; }, {passive: false});
 
     // Boot Up
     updateDisplays();
     initScene();
     Render.run(render);
     
-    // Create runner
     const runner = Runner.create();
     Runner.run(runner, engine);
 
