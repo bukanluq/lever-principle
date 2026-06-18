@@ -249,8 +249,6 @@
           Bodies = Matter.Bodies,
           Composite = Matter.Composite,
           Constraint = Matter.Constraint,
-          Mouse = Matter.Mouse,
-          MouseConstraint = Matter.MouseConstraint,
           Events = Matter.Events,
           Body = Matter.Body;
 
@@ -301,7 +299,8 @@
         const boardWidth = 1200;
         const boardHeight = 24;
         const startX = 200;
-        const boardY = 550;
+        const boardY = 550; // Center Y of the board
+        const fulcrumY = 612; // Center Y of the fulcrum
 
         const fPct = parseInt(sliders.f.value) / 100;
         const lPct = parseInt(sliders.l.value) / 100;
@@ -309,16 +308,20 @@
         const fulcrumX = startX + (fPct * boardWidth);
         const loadX = startX + (lPct * boardWidth);
 
+        // Ground
         const ground = Bodies.rectangle(width/2, height + 50, width + 200, 100, { 
             isStatic: true, 
             render: { fillStyle: '#e2e8f0' } 
         });
 
-        const fulcrum = Bodies.trapezoid(fulcrumX, boardY + 60, 100, 100, 1, { 
+        // Fulcrum (Kini diletakkan pada posisi tepat tanpa bertindih)
+        const fulcrum = Bodies.trapezoid(fulcrumX, fulcrumY, 100, 100, 1, { 
             isStatic: true, 
-            render: { fillStyle: '#3b82f6' } 
+            render: { fillStyle: '#3b82f6' },
+            collisionFilter: { group: -1 } // Kunci keselamatan: Elak physics engine meletup
         });
 
+        // Board
         const board = Bodies.rectangle(width/2, boardY, boardWidth, boardHeight, { 
             render: { fillStyle: '#fbbf24' }, 
             density: 0.002, 
@@ -329,31 +332,36 @@
         });
         currentBoard = board;
 
+        // Hinge (Disambung tepat pada permukaan)
         const hinge = Constraint.create({
             bodyA: fulcrum,
-            pointA: { x: 0, y: -50 }, 
+            pointA: { x: 0, y: -50 }, // Top of fulcrum
             bodyB: board,
-            pointB: { x: fulcrumX - (width/2), y: 0 }, 
+            pointB: { x: fulcrumX - (width/2), y: 12 }, // Bottom of board
             stiffness: 1,
             length: 0,
             render: { visible: false }
         });
 
+        // Load Box (Dikurangkan berat sedikit untuk keseimbangan visual)
         const boxSize = 100;
-        const loadBox = Bodies.rectangle(loadX, boardY - (boxSize/2) - (boardHeight/2), boxSize, boxSize, {
+        const boxY = 488; // boardY(550) - boardHeight/2(12) - boxSize/2(50)
+        
+        const loadBox = Bodies.rectangle(loadX, boxY, boxSize, boxSize, {
             render: { fillStyle: '#ef4444' }, 
-            density: 0.015, 
+            density: 0.005, 
             friction: 1.0,  
             restitution: 0.0, 
             chamfer: { radius: 10 },
             collisionFilter: { group: -1 }
         });
 
+        // Pin Box to Board
         const boxPin1 = Constraint.create({
             bodyA: board,
             pointA: { x: loadX - (width/2) - 30, y: -12 },
             bodyB: loadBox,
-            pointB: { x: -30, y: boxSize/2 },
+            pointB: { x: -30, y: 50 },
             stiffness: 1,
             length: 0,
             render: { visible: false }
@@ -362,28 +370,18 @@
             bodyA: board,
             pointA: { x: loadX - (width/2) + 30, y: -12 },
             bodyB: loadBox,
-            pointB: { x: 30, y: boxSize/2 },
+            pointB: { x: 30, y: 50 },
             stiffness: 1,
             length: 0,
             render: { visible: false }
         });
 
         Composite.add(engine.world, [ground, fulcrum, board, hinge, loadBox, boxPin1, boxPin2]);
-
-        const mouse = Mouse.create(render.canvas);
-        const mouseConstraint = MouseConstraint.create(engine, {
-            mouse: mouse,
-            constraint: { stiffness: 0.2, render: { visible: false } }
-        });
-        Composite.add(engine.world, mouseConstraint);
-        render.mouse = mouse; 
     }
 
-    // Apply Force Physics yang Dibaiki
     Events.on(engine, 'beforeUpdate', function() {
         if (isPushing && currentBoard) {
             const fpPct = parseInt(sliders.fp.value) / 100;
-            // Gandaan dinaikkan supaya objek besar boleh diangkat
             const fMag = parseInt(sliders.fm.value) * 0.002; 
             const boardWidth = 1200;
             const startX = 200;
@@ -396,4 +394,62 @@
     Events.on(render, 'afterRender', function() {
         if (currentBoard) {
             const ctx = render.context;
-            const fpPct =
+            const fpPct = parseInt(sliders.fp.value) / 100;
+            const fmMag = parseInt(sliders.fm.value);
+            const boardWidth = 1200;
+            const startX = 200;
+            const forceGlobalX = startX + (fpPct * boardWidth);
+            
+            const dx = forceGlobalX - currentBoard.position.x;
+            const forceGlobalY = currentBoard.position.y + Math.tan(currentBoard.angle) * dx;
+
+            const arrowLength = 50 + (fmMag * 0.2); 
+            
+            ctx.beginPath();
+            ctx.moveTo(forceGlobalX, forceGlobalY - arrowLength - 30);
+            ctx.lineTo(forceGlobalX, forceGlobalY - 30);
+            
+            ctx.moveTo(forceGlobalX - 15, forceGlobalY - 45);
+            ctx.lineTo(forceGlobalX, forceGlobalY - 25);
+            ctx.lineTo(forceGlobalX + 15, forceGlobalY - 45);
+            
+            ctx.lineWidth = isPushing ? 10 : 4;
+            ctx.strokeStyle = isPushing ? '#ef4444' : 'rgba(239, 68, 68, 0.3)';
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            ctx.stroke();
+
+            ctx.fillStyle = isPushing ? '#ef4444' : 'rgba(239, 68, 68, 0.5)';
+            ctx.font = 'bold 24px Nunito';
+            ctx.textAlign = 'center';
+            ctx.fillText(fmMag + ' N', forceGlobalX, forceGlobalY - arrowLength - 45);
+        }
+    });
+
+    document.querySelectorAll('input').forEach(input => {
+        input.addEventListener('input', () => {
+            updateDisplays();
+            if(input.id !== 'forcePosSlider' && input.id !== 'forceMagSlider') {
+                initScene(); 
+            }
+        });
+    });
+
+    document.getElementById('resetBtn').addEventListener('click', initScene);
+    
+    const pushBtn = document.getElementById('pushBtn');
+    pushBtn.addEventListener('mousedown', () => isPushing = true);
+    pushBtn.addEventListener('mouseup', () => isPushing = false);
+    pushBtn.addEventListener('mouseleave', () => isPushing = false);
+    pushBtn.addEventListener('touchstart', (e) => { e.preventDefault(); isPushing = true; }, {passive: false});
+    pushBtn.addEventListener('touchend', (e) => { e.preventDefault(); isPushing = false; }, {passive: false});
+
+    updateDisplays();
+    initScene();
+    Render.run(render);
+    
+    const runner = Runner.create();
+    Runner.run(runner, engine);
+</script>
+</body>
+</html>
