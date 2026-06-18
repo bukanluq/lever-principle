@@ -37,7 +37,7 @@
             border-radius: 16px;
             box-shadow: 0 10px 25px rgba(0,0,0,0.05);
             width: 95vw;
-            max-width: 1400px; /* Melebar untuk skrin besar */
+            max-width: 1400px;
             display: flex;
             flex-direction: column;
         }
@@ -59,14 +59,13 @@
             gap: 25px;
         }
 
-        /* Susun atur Landskap bila skrin besar */
         @media (min-width: 1024px) {
             .main-layout {
                 flex-direction: row;
                 align-items: stretch;
             }
             #canvas-container {
-                flex: 2.5; /* Kanvas ambil ruang lebih besar */
+                flex: 2.5; 
                 margin-bottom: 0 !important;
             }
             .panel {
@@ -89,7 +88,6 @@
             margin-bottom: 20px;
         }
 
-        /* Jadikan kanvas responsif mengikut saiz bekasnya */
         #canvas-container canvas {
             width: 100% !important;
             height: auto !important;
@@ -104,9 +102,7 @@
         }
 
         @media (min-width: 600px) and (max-width: 1023px) {
-            .panel {
-                grid-template-columns: 1fr 1fr; /* Dua lajur untuk tablet */
-            }
+            .panel { grid-template-columns: 1fr 1fr; }
         }
 
         .control-group {
@@ -233,8 +229,8 @@
                 <input type="range" id="forcePosSlider" min="5" max="95" value="80">
             </div>
             <div class="control-group">
-                <label>Force Magnitude <span><span id="fmVal">5</span>x</span></label>
-                <input type="range" id="forceMagSlider" min="1" max="20" value="5">
+                <label>Force Magnitude <span><span id="fmVal">100</span> N</span></label>
+                <input type="range" id="forceMagSlider" min="10" max="500" step="10" value="100">
             </div>
             
             <div class="action-row">
@@ -258,7 +254,6 @@
           Events = Matter.Events,
           Body = Matter.Body;
 
-    // Internal resolution dibesarkan untuk skrin besar (16:8 aspect ratio)
     const width = 1600;
     const height = 800;
     
@@ -303,7 +298,6 @@
         Composite.clear(engine.world);
         Engine.clear(engine);
 
-        // Skala komponen dibesarkan sejajar dengan resolusi 1600x800
         const boardWidth = 1200;
         const boardHeight = 24;
         const startX = 200;
@@ -315,19 +309,16 @@
         const fulcrumX = startX + (fPct * boardWidth);
         const loadX = startX + (lPct * boardWidth);
 
-        // Ground
         const ground = Bodies.rectangle(width/2, height + 50, width + 200, 100, { 
             isStatic: true, 
             render: { fillStyle: '#e2e8f0' } 
         });
 
-        // Fulcrum
         const fulcrum = Bodies.trapezoid(fulcrumX, boardY + 60, 100, 100, 1, { 
             isStatic: true, 
             render: { fillStyle: '#3b82f6' } 
         });
 
-        // Board
         const board = Bodies.rectangle(width/2, boardY, boardWidth, boardHeight, { 
             render: { fillStyle: '#fbbf24' }, 
             density: 0.002, 
@@ -338,7 +329,6 @@
         });
         currentBoard = board;
 
-        // Board to Fulcrum Hinge
         const hinge = Constraint.create({
             bodyA: fulcrum,
             pointA: { x: 0, y: -50 }, 
@@ -349,7 +339,6 @@
             render: { visible: false }
         });
 
-        // Load Box
         const boxSize = 100;
         const loadBox = Bodies.rectangle(loadX, boardY - (boxSize/2) - (boardHeight/2), boxSize, boxSize, {
             render: { fillStyle: '#ef4444' }, 
@@ -360,7 +349,6 @@
             collisionFilter: { group: -1 }
         });
 
-        // Pin Box to Board
         const boxPin1 = Constraint.create({
             bodyA: board,
             pointA: { x: loadX - (width/2) - 30, y: -12 },
@@ -391,11 +379,12 @@
         render.mouse = mouse; 
     }
 
-    // Apply Force Physics
+    // Apply Force Physics yang Dibaiki
     Events.on(engine, 'beforeUpdate', function() {
         if (isPushing && currentBoard) {
             const fpPct = parseInt(sliders.fp.value) / 100;
-            const fMag = parseInt(sliders.fm.value) * 0.03; // Dilaraskan untuk skala baru
+            // Gandaan dinaikkan supaya objek besar boleh diangkat
+            const fMag = parseInt(sliders.fm.value) * 0.002; 
             const boardWidth = 1200;
             const startX = 200;
             const forceGlobalX = startX + (fpPct * boardWidth);
@@ -404,70 +393,7 @@
         }
     });
 
-    // DRAW VISUAL ARROW (Sekarang sentiasa nampak!)
     Events.on(render, 'afterRender', function() {
         if (currentBoard) {
             const ctx = render.context;
-            const fpPct = parseInt(sliders.fp.value) / 100;
-            const fmMag = parseInt(sliders.fm.value);
-            const boardWidth = 1200;
-            const startX = 200;
-            const forceGlobalX = startX + (fpPct * boardWidth);
-            
-            // Kira posisi menegak atas papan
-            const dx = forceGlobalX - currentBoard.position.x;
-            const forceGlobalY = currentBoard.position.y + Math.tan(currentBoard.angle) * dx;
-
-            const arrowLength = 50 + (fmMag * 5); 
-            
-            ctx.beginPath();
-            ctx.moveTo(forceGlobalX, forceGlobalY - arrowLength - 30);
-            ctx.lineTo(forceGlobalX, forceGlobalY - 30);
-            
-            // Kepala panah
-            ctx.moveTo(forceGlobalX - 15, forceGlobalY - 45);
-            ctx.lineTo(forceGlobalX, forceGlobalY - 25);
-            ctx.lineTo(forceGlobalX + 15, forceGlobalY - 45);
-            
-            // Gaya visual: Pudar bila tak tekan, Merah Terang bila tekan
-            ctx.lineWidth = isPushing ? 10 : 4;
-            ctx.strokeStyle = isPushing ? '#ef4444' : 'rgba(239, 68, 68, 0.3)';
-            ctx.lineCap = 'round';
-            ctx.lineJoin = 'round';
-            ctx.stroke();
-
-            // Teks daya
-            ctx.fillStyle = isPushing ? '#ef4444' : 'rgba(239, 68, 68, 0.5)';
-            ctx.font = 'bold 24px Nunito';
-            ctx.textAlign = 'center';
-            ctx.fillText(fmMag + 'x Force', forceGlobalX, forceGlobalY - arrowLength - 45);
-        }
-    });
-
-    document.querySelectorAll('input').forEach(input => {
-        input.addEventListener('input', () => {
-            updateDisplays();
-            if(input.id !== 'forcePosSlider' && input.id !== 'forceMagSlider') {
-                initScene(); 
-            }
-        });
-    });
-
-    document.getElementById('resetBtn').addEventListener('click', initScene);
-    
-    const pushBtn = document.getElementById('pushBtn');
-    pushBtn.addEventListener('mousedown', () => isPushing = true);
-    pushBtn.addEventListener('mouseup', () => isPushing = false);
-    pushBtn.addEventListener('mouseleave', () => isPushing = false);
-    pushBtn.addEventListener('touchstart', (e) => { e.preventDefault(); isPushing = true; }, {passive: false});
-    pushBtn.addEventListener('touchend', (e) => { e.preventDefault(); isPushing = false; }, {passive: false});
-
-    updateDisplays();
-    initScene();
-    Render.run(render);
-    
-    const runner = Runner.create();
-    Runner.run(runner, engine);
-</script>
-</body>
-</html>
+            const fpPct =
