@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Lever Simulator</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f4f9;
+            color: #333;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            max-width: 800px;
+            width: 100%;
+        }
+        h2 {
+            text-align: center;
+            margin-top: 0;
+            color: #2c3e50;
+        }
+        canvas {
+            background-color: #eef2f5;
+            border-radius: 8px;
+            border: 1px solid #dcdde1;
+            display: block;
+            margin: 0 auto 20px auto;
+            width: 100%;
+            max-width: 760px;
+        }
+        .controls {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+        .control-group {
+            background: #f8f9fa;
+            padding: 10px 15px;
+            border-radius: 8px;
+            border: 1px solid #e1e4e8;
+        }
+        .control-group label {
+            display: flex;
+            justify-content: space-between;
+            font-weight: bold;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+        input[type="range"] {
+            width: 100%;
+            cursor: pointer;
+        }
+        .status {
+            text-align: center;
+            font-size: 24px;
+            font-weight: bold;
+            margin-top: 20px;
+            padding: 10px;
+            border-radius: 8px;
+        }
+        .status.lifted {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        .status.heavy {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        .stats {
+            display: flex;
+            justify-content: space-around;
+            margin-top: 15px;
+            font-size: 16px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>Lever Mechanics Simulator</h2>
+    
+    <canvas id="leverCanvas" width="760" height="300"></canvas>
+
+    <div class="controls">
+        <div class="control-group">
+            <label>Fulcrum Position <span><span id="fulcrumVal">50</span>%</span></label>
+            <input type="range" id="fulcrumSlider" min="10" max="90" value="50">
+        </div>
+        <div class="control-group">
+            <label>Load Position (Weight: 50kg) <span><span id="loadVal">20</span>%</span></label>
+            <input type="range" id="loadSlider" min="0" max="100" value="20">
+        </div>
+        <div class="control-group">
+            <label>Force Position <span><span id="forceVal">80</span>%</span></label>
+            <input type="range" id="forcePosSlider" min="0" max="100" value="80">
+        </div>
+        <div class="control-group">
+            <label>Applied Force <span><span id="forceMagVal">30</span>N</span></label>
+            <input type="range" id="forceSlider" min="0" max="100" value="30">
+        </div>
+    </div>
+
+    <div class="stats">
+        <div>Load Torque: <strong id="loadTorqueDisplay">0</strong></div>
+        <div>Force Torque: <strong id="forceTorqueDisplay">0</strong></div>
+    </div>
+
+    <div id="statusBox" class="status heavy">Too Heavy!</div>
+</div>
+
+<script>
+    const canvas = document.getElementById('leverCanvas');
+    const ctx = canvas.getContext('2d');
+
+    // DOM Elements
+    const fulcrumSlider = document.getElementById('fulcrumSlider');
+    const loadSlider = document.getElementById('loadSlider');
+    const forcePosSlider = document.getElementById('forcePosSlider');
+    const forceSlider = document.getElementById('forceSlider');
+    
+    const fulcrumVal = document.getElementById('fulcrumVal');
+    const loadVal = document.getElementById('loadVal');
+    const forceVal = document.getElementById('forceVal');
+    const forceMagVal = document.getElementById('forceMagVal');
+    
+    const loadTorqueDisplay = document.getElementById('loadTorqueDisplay');
+    const forceTorqueDisplay = document.getElementById('forceTorqueDisplay');
+    const statusBox = document.getElementById('statusBox');
+
+    const LOAD_WEIGHT = 50;
+    const BOARD_Y = 200;
+    const BOARD_START_X = 50;
+    const BOARD_WIDTH = 660;
+
+    function draw() {
+        // Get values
+        const fulcrumPct = parseInt(fulcrumSlider.value);
+        const loadPct = parseInt(loadSlider.value);
+        const forcePosPct = parseInt(forcePosSlider.value);
+        const forceMag = parseInt(forceSlider.value);
+
+        // Update Text Labels
+        fulcrumVal.innerText = fulcrumPct;
+        loadVal.innerText = loadPct;
+        forceVal.innerText = forcePosPct;
+        forceMagVal.innerText = forceMag;
+
+        // Calculate Physics
+        const fulcrumX = BOARD_START_X + (fulcrumPct / 100) * BOARD_WIDTH;
+        const loadX = BOARD_START_X + (loadPct / 100) * BOARD_WIDTH;
+        const forceX = BOARD_START_X + (forcePosPct / 100) * BOARD_WIDTH;
+
+        const loadDistance = Math.abs(loadPct - fulcrumPct);
+        const forceDistance = Math.abs(forcePosPct - fulcrumPct);
+
+        const loadTorque = LOAD_WEIGHT * loadDistance;
+        const forceTorque = forceMag * forceDistance;
+
+        loadTorqueDisplay.innerText = loadTorque.toFixed(0);
+        forceTorqueDisplay.innerText = forceTorque.toFixed(0);
+
+        const isLifted = forceTorque >= loadTorque && loadDistance > 0;
+
+        if (isLifted) {
+            statusBox.innerText = "Load Lifted!";
+            statusBox.className = "status lifted";
+        } else {
+            statusBox.innerText = "Too Heavy!";
+            statusBox.className = "status heavy";
+        }
+
+        // Clear Canvas
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // Calculate Board Tilt (Visual flair)
+        let tiltAngle = 0;
+        if (loadX < fulcrumX) {
+            tiltAngle = isLifted ? 0.1 : -0.1;
+        } else {
+            tiltAngle = isLifted ? -0.1 : 0.1;
+        }
+        if (loadPct === fulcrumPct) tiltAngle = 0; // Perfectly balanced if on top of fulcrum
+
+        ctx.save();
+        ctx.translate(fulcrumX, BOARD_Y);
+        ctx.rotate(tiltAngle);
+
+        // Draw Board
+        ctx.fillStyle = '#f39c12';
+        ctx.fillRect(-fulcrumX + BOARD_START_X, -5, BOARD_WIDTH, 10);
+
+        // Draw Load (Box)
+        ctx.fillStyle = '#3498db';
+        ctx.fillRect(-fulcrumX + loadX - 25, -55, 50, 50);
+        ctx.fillStyle = 'white';
+        ctx.font = '16px Arial';
+        ctx.fillText('LOAD', -fulcrumX + loadX - 20, -25);
+
+        // Draw Force Arrow
+        const arrowLength = forceMag;
+        ctx.fillStyle = '#e74c3c';
+        ctx.beginPath();
+        // Determine arrow direction (pushing down)
+        const fx = -fulcrumX + forceX;
+        ctx.moveTo(fx, -10 - arrowLength);
+        ctx.lineTo(fx - 10, -10 - arrowLength + 10);
+        ctx.lineTo(fx - 4, -10 - arrowLength + 10);
+        ctx.lineTo(fx - 4, -10);
+        ctx.lineTo(fx + 4, -10);
+        ctx.lineTo(fx + 4, -10 - arrowLength + 10);
+        ctx.lineTo(fx + 10, -10 - arrowLength + 10);
+        ctx.fill();
+        
+        ctx.fillStyle = '#c0392b';
+        ctx.font = '14px Arial';
+        ctx.fillText('FORCE', fx - 25, -20 - arrowLength);
+
+        ctx.restore();
+
+        // Draw Fulcrum (Triangle) - Drawn after restore so it doesn't tilt
+        ctx.fillStyle = '#2c3e50';
+        ctx.beginPath();
+        ctx.moveTo(fulcrumX, BOARD_Y);
+        ctx.lineTo(fulcrumX - 20, BOARD_Y + 40);
+        ctx.lineTo(fulcrumX + 20, BOARD_Y + 40);
+        ctx.fill();
+        ctx.fillStyle = 'white';
+        ctx.font = '10px Arial';
+        ctx.fillText('FULCRUM', fulcrumX - 22, BOARD_Y + 35);
+    }
+
+    // Event Listeners
+    fulcrumSlider.addEventListener('input', draw);
+    loadSlider.addEventListener('input', draw);
+    forcePosSlider.addEventListener('input', draw);
+    forceSlider.addEventListener('input', draw);
+
+    // Initial Draw
+    draw();
+</script>
+
+</body>
+</html>
