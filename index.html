@@ -154,6 +154,35 @@
             transform: scale(1.15);
         }
 
+        /* Segmented Control Styles */
+        .segmented-control {
+            display: flex;
+            background: #e2e8f0;
+            border-radius: 8px;
+            padding: 4px;
+            margin-top: 5px;
+        }
+        .segmented-control input {
+            display: none;
+        }
+        .segmented-control label {
+            flex: 1;
+            text-align: center;
+            padding: 10px 12px;
+            margin: 0;
+            font-size: 14px;
+            font-weight: 800;
+            color: #64748b;
+            cursor: pointer;
+            border-radius: 6px;
+            transition: all 0.2s;
+        }
+        .segmented-control input:checked + label {
+            background: #ffffff;
+            color: var(--primary);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
         .action-row {
             display: flex;
             flex-direction: column;
@@ -208,6 +237,17 @@
         <div id="canvas-container"></div>
 
         <div class="panel">
+            <div class="control-group" style="grid-column: 1 / -1;">
+                <label style="margin-bottom: 4px;">Physics Environment</label>
+                <div class="segmented-control">
+                    <input type="radio" id="modeIdeal" name="physicsMode" value="ideal">
+                    <label for="modeIdeal">Perfect Math</label>
+                    
+                    <input type="radio" id="modeReal" name="physicsMode" value="real" checked>
+                    <label for="modeReal">Real World</label>
+                </div>
+            </div>
+
             <div class="control-group">
                 <label>Fulcrum Position <span><span id="fVal">5.0</span> m</span></label>
                 <input type="range" id="fulcrumSlider" min="1.0" max="9.0" step="0.1" value="5.0">
@@ -313,7 +353,6 @@
             render: { fillStyle: '#fbbf24' }, 
             density: 0.002, 
             friction: 0.8,
-            frictionAir: 0.04, // FIX 1: Air resistance stops it from swinging forever
             restitution: 0.1,
             chamfer: { radius: 6 },
             collisionFilter: { group: -1 }
@@ -367,7 +406,7 @@
 
     Events.on(engine, 'beforeUpdate', function() {
         if (currentBoard) {
-            // Cancel out board gravity
+            // Cancel board gravity
             const gravityForce = currentBoard.mass * engine.gravity.y * engine.gravity.scale;
             Body.applyForce(currentBoard, currentBoard.position, { x: 0, y: -gravityForce });
 
@@ -383,9 +422,38 @@
             
             Body.applyForce(currentBoard, { x: forceGlobalX, y: forceGlobalY }, { x: 0, y: fMag });
 
-            // FIX 2: Auto-Leveling Pendulum Effect
-            // Mimics a real-world scale's low center of mass, gently pulling it flat when perfectly balanced
-            currentBoard.torque -= currentBoard.angle * 0.02; 
+            // -------------------------------------------------------------
+            // DUAL MODE LOGIC: "Real World" vs "Perfect Math"
+            // -------------------------------------------------------------
+            const isRealWorld = document.getElementById('modeReal').checked;
+
+            if (isRealWorld) {
+                // REAL WORLD MODE: Air resistance and Pendulum effect active
+                currentBoard.frictionAir = 0.04;
+                currentBoard.torque -= currentBoard.angle * 0.02; // Restoring torque mimics real scale
+            } else {
+                // PERFECT MATH MODE: Low friction, no pendulum, magical snapping
+                currentBoard.frictionAir = 0.01;
+                
+                // Calculate theoretical moments to check for perfect balance
+                let fVal = parseFloat(sliders.f.value);
+                let lVal = parseFloat(sliders.l.value);
+                let fpVal = parseFloat(sliders.fp.value);
+                let fmVal = parseFloat(sliders.fm.value);
+
+                let loadMoment = 200 * Math.abs(lVal - fVal);
+                let forceMoment = fmVal * Math.abs(fpVal - fVal);
+
+                // If equations match (and forces are on opposite sides), 
+                // magnetically snap to a flat 0 angle immediately.
+                let momentsMatch = Math.abs(loadMoment - forceMoment) < 0.1;
+                let isOppositeSides = (lVal < fVal && fpVal > fVal) || (lVal > fVal && fpVal < fVal);
+
+                if (momentsMatch && isOppositeSides) {
+                    Body.setAngle(currentBoard, currentBoard.angle * 0.8); // Smooth "tractor beam" to 0
+                    Body.setAngularVelocity(currentBoard, currentBoard.angularVelocity * 0.5);
+                }
+            }
         }
     });
 
@@ -393,6 +461,7 @@
         if (currentBoard) {
             const ctx = render.context;
             
+            // --- 1. FORCE ARROW ---
             const fpPct = parseFloat(sliders.fp.value) / 10;
             const fmMag = parseInt(sliders.fm.value);
             const boardWidth = 1200;
@@ -424,6 +493,7 @@
             ctx.fillText(fmMag + ' N', forceGlobalX, forceGlobalY - arrowLength - 45);
 
 
+            // --- 2. WATER BALANCER (SPIRIT LEVEL) HUD ---
             const meterX = width / 2;
             const meterY = 120;
             const tubeWidth = 400;
