@@ -228,7 +228,7 @@
             <div class="action-row">
                 <button id="resetBtn">Reset Positions</button>
             </div>
-            <div class="hint">💡 Tarik slider untuk lihat perubahan daya secara masa nyata!</div>
+            <div class="hint">💡 Tarik slider untuk lihat perubahan daya & meter keseimbangan secara masa nyata!</div>
         </div>
     </div>
 </div>
@@ -363,7 +363,7 @@
         Composite.add(engine.world, [ground, fulcrum, board, hinge, loadBox, boxPin1, boxPin2]);
     }
 
-    // Force kini dikenakan secara SENTIASA (Real-time)
+    // Apply Force Secara Masa Nyata
     Events.on(engine, 'beforeUpdate', function() {
         if (currentBoard) {
             const fpPct = parseInt(sliders.fp.value) / 100;
@@ -376,10 +376,12 @@
         }
     });
 
-    // Visual arrow kini sentiasa terang dan dipaparkan
+    // Lukisan Custom (Arrow Daya & HUD Meter Keseimbangan)
     Events.on(render, 'afterRender', function() {
         if (currentBoard) {
             const ctx = render.context;
+            
+            // --- 1. LUKIS ANAK PANAH DAYA ---
             const fpPct = parseInt(sliders.fp.value) / 100;
             const fmMag = parseInt(sliders.fm.value);
             const boardWidth = 1200;
@@ -409,6 +411,64 @@
             ctx.font = 'bold 24px Nunito';
             ctx.textAlign = 'center';
             ctx.fillText(fmMag + ' N', forceGlobalX, forceGlobalY - arrowLength - 45);
+
+
+            // --- 2. LUKIS METER KESEIMBANGAN (BALANCE HUD) ---
+            const meterX = width / 2;
+            const meterY = 160;
+            const meterRadius = 100;
+
+            // Latar belakang meter (Separuh Bulatan Kelabu)
+            ctx.beginPath();
+            ctx.arc(meterX, meterY, meterRadius, Math.PI, 0);
+            ctx.lineWidth = 20;
+            ctx.strokeStyle = '#e2e8f0';
+            ctx.stroke();
+
+            // Zon Seimbang Tepat (Zon Hijau di tengah)
+            ctx.beginPath();
+            ctx.arc(meterX, meterY, meterRadius, -Math.PI/2 - 0.15, -Math.PI/2 + 0.15);
+            ctx.lineWidth = 20;
+            ctx.strokeStyle = '#22c55e';
+            ctx.stroke();
+
+            // Titik tengah meter
+            ctx.beginPath();
+            ctx.arc(meterX, meterY, 12, 0, Math.PI * 2);
+            ctx.fillStyle = '#334155';
+            ctx.fill();
+
+            // Dapatkan sudut papan (Tukar radian kepada darjah)
+            let angleDeg = currentBoard.angle * (180 / Math.PI);
+            
+            // Hadkan pusingan jarum supaya tak lebih dari meter, dan darab sensitiviti (5x)
+            let clampedAngle = Math.max(-90, Math.min(90, angleDeg * 5)); 
+            let needleRad = (clampedAngle - 90) * (Math.PI / 180);
+
+            // Lukis Jarum Meter
+            ctx.beginPath();
+            ctx.moveTo(meterX, meterY);
+            ctx.lineTo(meterX + Math.cos(needleRad) * (meterRadius - 15), meterY + Math.sin(needleRad) * (meterRadius - 15));
+            ctx.lineWidth = 6;
+            ctx.strokeStyle = '#334155';
+            ctx.lineCap = 'round';
+            ctx.stroke();
+
+            // Teks Status Keseimbangan
+            ctx.font = 'bold 26px Nunito';
+            ctx.textAlign = 'center';
+            
+            // Logik toleransi: Jika kurang dari 0.8 darjah, ia dikira seimbang
+            if (Math.abs(angleDeg) < 0.8) {
+                ctx.fillStyle = '#16a34a';
+                ctx.fillText('SEIMBANG TEPAT', meterX, meterY + 45);
+            } else if (angleDeg > 0.8) {
+                ctx.fillStyle = '#ef4444';
+                ctx.fillText('BERAT KE KANAN ↘', meterX, meterY + 45);
+            } else {
+                ctx.fillStyle = '#ef4444';
+                ctx.fillText('↙ BERAT KE KIRI', meterX, meterY + 45);
+            }
         }
     });
 
