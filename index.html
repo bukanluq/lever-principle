@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Lever Principle</title>
+    <title>Lever Principle Sandbox</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;900&display=swap" rel="stylesheet">
     <style>
@@ -202,33 +202,33 @@
 <body>
 
 <div class="workspace">
-    <h2>Lever Principle</h2>
+    <h2>Lever Principle Sandbox</h2>
     
     <div class="main-layout">
         <div id="canvas-container"></div>
 
         <div class="panel">
             <div class="control-group">
-                <label>Fulcrum Position <span><span id="fVal">50</span>%</span></label>
-                <input type="range" id="fulcrumSlider" min="10" max="90" value="50">
+                <label>Fulcrum Position <span><span id="fVal">5.0</span> m</span></label>
+                <input type="range" id="fulcrumSlider" min="1.0" max="9.0" step="0.1" value="5.0">
             </div>
             <div class="control-group">
-                <label>Load Position <span><span id="lVal">20</span>%</span></label>
-                <input type="range" id="loadSlider" min="5" max="95" value="20">
+                <label>Load Position (Box) <span><span id="lVal">2.0</span> m</span></label>
+                <input type="range" id="loadSlider" min="0.5" max="9.5" step="0.1" value="2.0">
             </div>
             <div class="control-group">
-                <label>Force Input Point <span><span id="fpVal">80</span>%</span></label>
-                <input type="range" id="forcePosSlider" min="5" max="95" value="80">
+                <label>Force Input Point <span><span id="fpVal">8.0</span> m</span></label>
+                <input type="range" id="forcePosSlider" min="0.5" max="9.5" step="0.1" value="8.0">
             </div>
             <div class="control-group">
-                <label>Force Magnitude <span><span id="fmVal">100</span> N</span></label>
+                <label>Applied Force Magnitude <span><span id="fmVal">100</span> N</span></label>
                 <input type="range" id="forceMagSlider" min="10" max="500" step="10" value="100">
             </div>
             
             <div class="action-row">
-                <button id="resetBtn">Reset Positions</button>
+                <button id="resetBtn">Reset Simulation</button>
             </div>
-            <div class="hint">💡 Tarik slider untuk lihat perubahan daya & meter keseimbangan secara masa nyata!</div>
+            <div class="hint">💡 Drag the sliders to see the force apply in real-time. Look at the bubble level!</div>
         </div>
     </div>
 </div>
@@ -276,9 +276,9 @@
     };
 
     function updateDisplays() {
-        displays.f.innerText = sliders.f.value;
-        displays.l.innerText = sliders.l.value;
-        displays.fp.innerText = sliders.fp.value;
+        displays.f.innerText = parseFloat(sliders.f.value).toFixed(1);
+        displays.l.innerText = parseFloat(sliders.l.value).toFixed(1);
+        displays.fp.innerText = parseFloat(sliders.fp.value).toFixed(1);
         displays.fm.innerText = sliders.fm.value;
     }
 
@@ -292,11 +292,13 @@
         const boardY = 550; 
         const fulcrumY = 612; 
 
-        const fPct = parseInt(sliders.f.value) / 100;
-        const lPct = parseInt(sliders.l.value) / 100;
+        // Convert the 0-10 meter scale to a ratio for pixel plotting
+        const boardLengthMeters = 10.0;
+        const fRatio = parseFloat(sliders.f.value) / boardLengthMeters;
+        const lRatio = parseFloat(sliders.l.value) / boardLengthMeters;
         
-        const fulcrumX = startX + (fPct * boardWidth);
-        const loadX = startX + (lPct * boardWidth);
+        const fulcrumX = startX + (fRatio * boardWidth);
+        const loadX = startX + (lRatio * boardWidth);
 
         const ground = Bodies.rectangle(width/2, height + 50, width + 200, 100, { 
             isStatic: true, 
@@ -363,30 +365,30 @@
         Composite.add(engine.world, [ground, fulcrum, board, hinge, loadBox, boxPin1, boxPin2]);
     }
 
-    // Apply Force Secara Masa Nyata
     Events.on(engine, 'beforeUpdate', function() {
         if (currentBoard) {
-            const fpPct = parseInt(sliders.fp.value) / 100;
+            const boardLengthMeters = 10.0;
+            const fpRatio = parseFloat(sliders.fp.value) / boardLengthMeters;
             const fMag = parseInt(sliders.fm.value) * 0.002; 
             const boardWidth = 1200;
             const startX = 200;
-            const forceGlobalX = startX + (fpPct * boardWidth);
+            const forceGlobalX = startX + (fpRatio * boardWidth);
             
             Body.applyForce(currentBoard, { x: forceGlobalX, y: currentBoard.position.y }, { x: 0, y: fMag });
         }
     });
 
-    // Lukisan Custom (Arrow Daya & HUD Meter Keseimbangan)
     Events.on(render, 'afterRender', function() {
         if (currentBoard) {
             const ctx = render.context;
+            const boardLengthMeters = 10.0;
             
-            // --- 1. LUKIS ANAK PANAH DAYA ---
-            const fpPct = parseInt(sliders.fp.value) / 100;
+            // --- 1. DRAW FORCE ARROW ---
+            const fpRatio = parseFloat(sliders.fp.value) / boardLengthMeters;
             const fmMag = parseInt(sliders.fm.value);
             const boardWidth = 1200;
             const startX = 200;
-            const forceGlobalX = startX + (fpPct * boardWidth);
+            const forceGlobalX = startX + (fpRatio * boardWidth);
             
             const dx = forceGlobalX - currentBoard.position.x;
             const forceGlobalY = currentBoard.position.y + Math.tan(currentBoard.angle) * dx;
@@ -412,62 +414,72 @@
             ctx.textAlign = 'center';
             ctx.fillText(fmMag + ' N', forceGlobalX, forceGlobalY - arrowLength - 45);
 
+            // --- 2. DRAW SPIRIT LEVEL (BUBBLE BALANCER) ---
+            const levelWidth = 400;
+            const levelHeight = 44;
+            const levelX = width / 2 - levelWidth / 2;
+            const levelY = 120;
 
-            // --- 2. LUKIS METER KESEIMBANGAN (BALANCE HUD) ---
-            const meterX = width / 2;
-            const meterY = 160;
-            const meterRadius = 100;
-
-            // Latar belakang meter (Separuh Bulatan Kelabu)
+            // Glass Tube Background
             ctx.beginPath();
-            ctx.arc(meterX, meterY, meterRadius, Math.PI, 0);
-            ctx.lineWidth = 20;
-            ctx.strokeStyle = '#e2e8f0';
+            if (ctx.roundRect) {
+                ctx.roundRect(levelX, levelY, levelWidth, levelHeight, 22);
+            } else {
+                ctx.rect(levelX, levelY, levelWidth, levelHeight);
+            }
+            ctx.fillStyle = 'rgba(241, 245, 249, 0.9)'; // Slightly transparent grey/white
+            ctx.fill();
+            ctx.lineWidth = 4;
+            ctx.strokeStyle = '#cbd5e1'; // Silver border
             ctx.stroke();
 
-            // Zon Seimbang Tepat (Zon Hijau di tengah)
+            // Center Target Lines (Where the bubble should sit to be balanced)
             ctx.beginPath();
-            ctx.arc(meterX, meterY, meterRadius, -Math.PI/2 - 0.15, -Math.PI/2 + 0.15);
-            ctx.lineWidth = 20;
-            ctx.strokeStyle = '#22c55e';
+            ctx.moveTo(width / 2 - 30, levelY);
+            ctx.lineTo(width / 2 - 30, levelY + levelHeight);
+            ctx.moveTo(width / 2 + 30, levelY);
+            ctx.lineTo(width / 2 + 30, levelY + levelHeight);
+            ctx.lineWidth = 3;
+            ctx.strokeStyle = '#64748b';
             ctx.stroke();
 
-            // Titik tengah meter
+            // Physics logic for Bubble Movement
+            let angleDeg = currentBoard.angle * (180 / Math.PI);
+            // In a real spirit level, the bubble moves to the HIGHEST point.
+            // If angle is positive (right side tilted down), bubble moves left.
+            let shift = angleDeg * -40; 
+            
+            // Limit the bubble from flying out of the tube
+            let maxShift = (levelWidth / 2) - 30; 
+            shift = Math.max(-maxShift, Math.min(maxShift, shift));
+
+            const bubbleX = width / 2 + shift;
+            let isBalanced = Math.abs(angleDeg) < 0.8;
+
+            // Draw the Bubble
             ctx.beginPath();
-            ctx.arc(meterX, meterY, 12, 0, Math.PI * 2);
-            ctx.fillStyle = '#334155';
+            if (ctx.roundRect) {
+                ctx.roundRect(bubbleX - 22, levelY + 4, 44, levelHeight - 8, 18);
+            } else {
+                ctx.rect(bubbleX - 22, levelY + 4, 44, levelHeight - 8);
+            }
+            
+            // Bubble glows bright green if centered, neon blue if not
+            ctx.fillStyle = isBalanced ? '#22c55e' : '#38bdf8'; 
             ctx.fill();
 
-            // Dapatkan sudut papan (Tukar radian kepada darjah)
-            let angleDeg = currentBoard.angle * (180 / Math.PI);
-            
-            // Hadkan pusingan jarum supaya tak lebih dari meter, dan darab sensitiviti (5x)
-            let clampedAngle = Math.max(-90, Math.min(90, angleDeg * 5)); 
-            let needleRad = (clampedAngle - 90) * (Math.PI / 180);
-
-            // Lukis Jarum Meter
-            ctx.beginPath();
-            ctx.moveTo(meterX, meterY);
-            ctx.lineTo(meterX + Math.cos(needleRad) * (meterRadius - 15), meterY + Math.sin(needleRad) * (meterRadius - 15));
-            ctx.lineWidth = 6;
-            ctx.strokeStyle = '#334155';
-            ctx.lineCap = 'round';
-            ctx.stroke();
-
-            // Teks Status Keseimbangan
-            ctx.font = 'bold 26px Nunito';
+            // Render HUD Text below the level
+            ctx.font = 'bold 22px Nunito';
             ctx.textAlign = 'center';
-            
-            // Logik toleransi: Jika kurang dari 0.8 darjah, ia dikira seimbang
-            if (Math.abs(angleDeg) < 0.8) {
+            if (isBalanced) {
                 ctx.fillStyle = '#16a34a';
-                ctx.fillText('SEIMBANG TEPAT', meterX, meterY + 45);
+                ctx.fillText('PERFECTLY BALANCED', width / 2, levelY - 15);
             } else if (angleDeg > 0.8) {
                 ctx.fillStyle = '#ef4444';
-                ctx.fillText('BERAT KE KANAN ↘', meterX, meterY + 45);
+                ctx.fillText('HEAVY RIGHT', width / 2, levelY - 15);
             } else {
                 ctx.fillStyle = '#ef4444';
-                ctx.fillText('↙ BERAT KE KIRI', meterX, meterY + 45);
+                ctx.fillText('HEAVY LEFT', width / 2, levelY - 15);
             }
         }
     });
