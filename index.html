@@ -286,7 +286,7 @@
         Composite.clear(engine.world);
         Engine.clear(engine);
 
-        const boardWidth = 1200; // Represents 10 meters visually
+        const boardWidth = 1200; 
         const boardHeight = 24;
         const startX = 200;
         const boardY = 550; 
@@ -334,12 +334,15 @@
         
         const loadBox = Bodies.rectangle(loadX, boxY, boxSize, boxSize, {
             render: { fillStyle: '#ef4444' }, 
-            density: 0.005, 
             friction: 1.0,  
             restitution: 0.0, 
             chamfer: { radius: 10 },
             collisionFilter: { group: -1 }
         });
+        
+        // BUG FIX: The chamfer (rounded corners) previously shaved mass off the box. 
+        // We now force it to be exactly 50 mass units so the mathematical formulas are flawless.
+        Body.setMass(loadBox, 50);
 
         const boxPin1 = Constraint.create({
             bodyA: board,
@@ -363,31 +366,31 @@
         Composite.add(engine.world, [ground, fulcrum, board, hinge, loadBox, boxPin1, boxPin2]);
     }
 
-    // Real-Time Physics Update
     Events.on(engine, 'beforeUpdate', function() {
         if (currentBoard) {
-            // FIX 1: Make the board weightless so it acts as a perfect mathematical lever
+            // Cancel out board gravity so the math relies ONLY on the force and the box
             const gravityForce = currentBoard.mass * engine.gravity.y * engine.gravity.scale;
             Body.applyForce(currentBoard, currentBoard.position, { x: 0, y: -gravityForce });
 
             const fpPct = parseFloat(sliders.fp.value) / 10;
-            // FIX 2: Perfectly calibrate the force multiplier so 200N on slider = 200N box weight
             const fMag = parseInt(sliders.fm.value) * 0.00025; 
             
             const boardWidth = 1200;
             const startX = 200;
             const forceGlobalX = startX + (fpPct * boardWidth);
             
-            Body.applyForce(currentBoard, { x: forceGlobalX, y: currentBoard.position.y }, { x: 0, y: fMag });
+            // Apply force directly to the surface of the board, not just the raw Y axis
+            const dx = forceGlobalX - currentBoard.position.x;
+            const forceGlobalY = currentBoard.position.y + Math.tan(currentBoard.angle) * dx;
+            
+            Body.applyForce(currentBoard, { x: forceGlobalX, y: forceGlobalY }, { x: 0, y: fMag });
         }
     });
 
-    // Custom HUD Rendering
     Events.on(render, 'afterRender', function() {
         if (currentBoard) {
             const ctx = render.context;
             
-            // --- 1. FORCE ARROW ---
             const fpPct = parseFloat(sliders.fp.value) / 10;
             const fmMag = parseInt(sliders.fm.value);
             const boardWidth = 1200;
@@ -419,13 +422,11 @@
             ctx.fillText(fmMag + ' N', forceGlobalX, forceGlobalY - arrowLength - 45);
 
 
-            // --- 2. WATER BALANCER (SPIRIT LEVEL) HUD ---
             const meterX = width / 2;
             const meterY = 120;
             const tubeWidth = 400;
             const tubeHeight = 44;
 
-            // Tube Background
             ctx.beginPath();
             if(ctx.roundRect) {
                 ctx.roundRect(meterX - tubeWidth/2, meterY - tubeHeight/2, tubeWidth, tubeHeight, 22);
@@ -438,16 +439,13 @@
             ctx.strokeStyle = '#94a3b8';
             ctx.stroke();
 
-            // Calculate angle and bubble position
             let angleDeg = currentBoard.angle * (180 / Math.PI);
             let sensitivity = 20; 
             
             let bubbleOffset = -angleDeg * sensitivity;
-            
             let maxOffset = (tubeWidth / 2) - 35;
             bubbleOffset = Math.max(-maxOffset, Math.min(maxOffset, bubbleOffset));
 
-            // Draw Bubble
             ctx.beginPath();
             if(ctx.roundRect) {
                 ctx.roundRect(meterX + bubbleOffset - 25, meterY - tubeHeight/2 + 4, 50, tubeHeight - 8, 18);
@@ -460,7 +458,6 @@
             ctx.strokeStyle = '#38bdf8';
             ctx.stroke();
 
-            // Draw Target Center Lines
             ctx.beginPath();
             ctx.moveTo(meterX - 30, meterY - tubeHeight/2);
             ctx.lineTo(meterX - 30, meterY + tubeHeight/2);
@@ -470,7 +467,6 @@
             ctx.strokeStyle = '#0f172a';
             ctx.stroke();
 
-            // Status Text
             ctx.font = 'bold 24px Nunito';
             ctx.textAlign = 'center';
             
