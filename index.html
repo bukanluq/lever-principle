@@ -313,6 +313,7 @@
             render: { fillStyle: '#fbbf24' }, 
             density: 0.002, 
             friction: 0.8,
+            frictionAir: 0.04, // FIX 1: Air resistance stops it from swinging forever
             restitution: 0.1,
             chamfer: { radius: 6 },
             collisionFilter: { group: -1 }
@@ -340,8 +341,6 @@
             collisionFilter: { group: -1 }
         });
         
-        // BUG FIX: The chamfer (rounded corners) previously shaved mass off the box. 
-        // We now force it to be exactly 50 mass units so the mathematical formulas are flawless.
         Body.setMass(loadBox, 50);
 
         const boxPin1 = Constraint.create({
@@ -368,7 +367,7 @@
 
     Events.on(engine, 'beforeUpdate', function() {
         if (currentBoard) {
-            // Cancel out board gravity so the math relies ONLY on the force and the box
+            // Cancel out board gravity
             const gravityForce = currentBoard.mass * engine.gravity.y * engine.gravity.scale;
             Body.applyForce(currentBoard, currentBoard.position, { x: 0, y: -gravityForce });
 
@@ -379,11 +378,14 @@
             const startX = 200;
             const forceGlobalX = startX + (fpPct * boardWidth);
             
-            // Apply force directly to the surface of the board, not just the raw Y axis
             const dx = forceGlobalX - currentBoard.position.x;
             const forceGlobalY = currentBoard.position.y + Math.tan(currentBoard.angle) * dx;
             
             Body.applyForce(currentBoard, { x: forceGlobalX, y: forceGlobalY }, { x: 0, y: fMag });
+
+            // FIX 2: Auto-Leveling Pendulum Effect
+            // Mimics a real-world scale's low center of mass, gently pulling it flat when perfectly balanced
+            currentBoard.torque -= currentBoard.angle * 0.02; 
         }
     });
 
