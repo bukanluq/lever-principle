@@ -221,8 +221,8 @@
                 <input type="range" id="forcePosSlider" min="0.5" max="9.5" step="0.1" value="8.0">
             </div>
             <div class="control-group">
-                <label>Force Magnitude <span><span id="fmVal">100</span> N</span></label>
-                <input type="range" id="forceMagSlider" min="10" max="500" step="10" value="100">
+                <label>Force Magnitude <span><span id="fmVal">200</span> N</span></label>
+                <input type="range" id="forceMagSlider" min="10" max="500" step="10" value="200">
             </div>
             
             <div class="action-row">
@@ -292,7 +292,6 @@
         const boardY = 550; 
         const fulcrumY = 612; 
 
-        // Convert meter scale (0-10) to percentages for the visual rendering
         const fPct = parseFloat(sliders.f.value) / 10;
         const lPct = parseFloat(sliders.l.value) / 10;
         
@@ -367,8 +366,14 @@
     // Real-Time Physics Update
     Events.on(engine, 'beforeUpdate', function() {
         if (currentBoard) {
+            // FIX 1: Make the board weightless so it acts as a perfect mathematical lever
+            const gravityForce = currentBoard.mass * engine.gravity.y * engine.gravity.scale;
+            Body.applyForce(currentBoard, currentBoard.position, { x: 0, y: -gravityForce });
+
             const fpPct = parseFloat(sliders.fp.value) / 10;
-            const fMag = parseInt(sliders.fm.value) * 0.002; 
+            // FIX 2: Perfectly calibrate the force multiplier so 200N on slider = 200N box weight
+            const fMag = parseInt(sliders.fm.value) * 0.00025; 
+            
             const boardWidth = 1200;
             const startX = 200;
             const forceGlobalX = startX + (fpPct * boardWidth);
@@ -435,13 +440,10 @@
 
             // Calculate angle and bubble position
             let angleDeg = currentBoard.angle * (180 / Math.PI);
-            let sensitivity = 20; // How fast the bubble moves
+            let sensitivity = 20; 
             
-            // In a spirit level, the bubble floats to the highest side. 
-            // If angle is positive (right side down), left side is up, so bubble moves left.
             let bubbleOffset = -angleDeg * sensitivity;
             
-            // Clamp bubble so it stays inside the tube
             let maxOffset = (tubeWidth / 2) - 35;
             bubbleOffset = Math.max(-maxOffset, Math.min(maxOffset, bubbleOffset));
 
@@ -498,7 +500,7 @@
         sliders.f.value = 5.0;
         sliders.l.value = 2.0;
         sliders.fp.value = 8.0;
-        sliders.fm.value = 100;
+        sliders.fm.value = 200;
         updateDisplays();
         initScene();
     });
