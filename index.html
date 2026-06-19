@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Lever Principle Sandbox</title>
+    <title>Lever Principle</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;900&display=swap" rel="stylesheet">
     <style>
@@ -202,7 +202,7 @@
 <body>
 
 <div class="workspace">
-    <h2>Lever Principle Sandbox</h2>
+    <h2>Lever Principle</h2>
     
     <div class="main-layout">
         <div id="canvas-container"></div>
@@ -213,7 +213,7 @@
                 <input type="range" id="fulcrumSlider" min="1.0" max="9.0" step="0.1" value="5.0">
             </div>
             <div class="control-group">
-                <label>Load Position (Box) <span><span id="lVal">2.0</span> m</span></label>
+                <label>Load Position (200 N) <span><span id="lVal">2.0</span> m</span></label>
                 <input type="range" id="loadSlider" min="0.5" max="9.5" step="0.1" value="2.0">
             </div>
             <div class="control-group">
@@ -221,14 +221,14 @@
                 <input type="range" id="forcePosSlider" min="0.5" max="9.5" step="0.1" value="8.0">
             </div>
             <div class="control-group">
-                <label>Applied Force Magnitude <span><span id="fmVal">100</span> N</span></label>
+                <label>Force Magnitude <span><span id="fmVal">100</span> N</span></label>
                 <input type="range" id="forceMagSlider" min="10" max="500" step="10" value="100">
             </div>
             
             <div class="action-row">
-                <button id="resetBtn">Reset Simulation</button>
+                <button id="resetBtn">Reset Positions</button>
             </div>
-            <div class="hint">💡 Drag the sliders to see the force apply in real-time. Look at the bubble level!</div>
+            <div class="hint">💡 Adjust the sliders to see real-time force and balance changes!</div>
         </div>
     </div>
 </div>
@@ -286,19 +286,18 @@
         Composite.clear(engine.world);
         Engine.clear(engine);
 
-        const boardWidth = 1200;
+        const boardWidth = 1200; // Represents 10 meters visually
         const boardHeight = 24;
         const startX = 200;
         const boardY = 550; 
         const fulcrumY = 612; 
 
-        // Convert the 0-10 meter scale to a ratio for pixel plotting
-        const boardLengthMeters = 10.0;
-        const fRatio = parseFloat(sliders.f.value) / boardLengthMeters;
-        const lRatio = parseFloat(sliders.l.value) / boardLengthMeters;
+        // Convert meter scale (0-10) to percentages for the visual rendering
+        const fPct = parseFloat(sliders.f.value) / 10;
+        const lPct = parseFloat(sliders.l.value) / 10;
         
-        const fulcrumX = startX + (fRatio * boardWidth);
-        const loadX = startX + (lRatio * boardWidth);
+        const fulcrumX = startX + (fPct * boardWidth);
+        const loadX = startX + (lPct * boardWidth);
 
         const ground = Bodies.rectangle(width/2, height + 50, width + 200, 100, { 
             isStatic: true, 
@@ -365,30 +364,30 @@
         Composite.add(engine.world, [ground, fulcrum, board, hinge, loadBox, boxPin1, boxPin2]);
     }
 
+    // Real-Time Physics Update
     Events.on(engine, 'beforeUpdate', function() {
         if (currentBoard) {
-            const boardLengthMeters = 10.0;
-            const fpRatio = parseFloat(sliders.fp.value) / boardLengthMeters;
+            const fpPct = parseFloat(sliders.fp.value) / 10;
             const fMag = parseInt(sliders.fm.value) * 0.002; 
             const boardWidth = 1200;
             const startX = 200;
-            const forceGlobalX = startX + (fpRatio * boardWidth);
+            const forceGlobalX = startX + (fpPct * boardWidth);
             
             Body.applyForce(currentBoard, { x: forceGlobalX, y: currentBoard.position.y }, { x: 0, y: fMag });
         }
     });
 
+    // Custom HUD Rendering
     Events.on(render, 'afterRender', function() {
         if (currentBoard) {
             const ctx = render.context;
-            const boardLengthMeters = 10.0;
             
-            // --- 1. DRAW FORCE ARROW ---
-            const fpRatio = parseFloat(sliders.fp.value) / boardLengthMeters;
+            // --- 1. FORCE ARROW ---
+            const fpPct = parseFloat(sliders.fp.value) / 10;
             const fmMag = parseInt(sliders.fm.value);
             const boardWidth = 1200;
             const startX = 200;
-            const forceGlobalX = startX + (fpRatio * boardWidth);
+            const forceGlobalX = startX + (fpPct * boardWidth);
             
             const dx = forceGlobalX - currentBoard.position.x;
             const forceGlobalY = currentBoard.position.y + Math.tan(currentBoard.angle) * dx;
@@ -414,72 +413,74 @@
             ctx.textAlign = 'center';
             ctx.fillText(fmMag + ' N', forceGlobalX, forceGlobalY - arrowLength - 45);
 
-            // --- 2. DRAW SPIRIT LEVEL (BUBBLE BALANCER) ---
-            const levelWidth = 400;
-            const levelHeight = 44;
-            const levelX = width / 2 - levelWidth / 2;
-            const levelY = 120;
 
-            // Glass Tube Background
+            // --- 2. WATER BALANCER (SPIRIT LEVEL) HUD ---
+            const meterX = width / 2;
+            const meterY = 120;
+            const tubeWidth = 400;
+            const tubeHeight = 44;
+
+            // Tube Background
             ctx.beginPath();
-            if (ctx.roundRect) {
-                ctx.roundRect(levelX, levelY, levelWidth, levelHeight, 22);
+            if(ctx.roundRect) {
+                ctx.roundRect(meterX - tubeWidth/2, meterY - tubeHeight/2, tubeWidth, tubeHeight, 22);
             } else {
-                ctx.rect(levelX, levelY, levelWidth, levelHeight);
+                ctx.rect(meterX - tubeWidth/2, meterY - tubeHeight/2, tubeWidth, tubeHeight);
             }
-            ctx.fillStyle = 'rgba(241, 245, 249, 0.9)'; // Slightly transparent grey/white
+            ctx.fillStyle = '#bae6fd'; 
             ctx.fill();
             ctx.lineWidth = 4;
-            ctx.strokeStyle = '#cbd5e1'; // Silver border
+            ctx.strokeStyle = '#94a3b8';
             ctx.stroke();
 
-            // Center Target Lines (Where the bubble should sit to be balanced)
-            ctx.beginPath();
-            ctx.moveTo(width / 2 - 30, levelY);
-            ctx.lineTo(width / 2 - 30, levelY + levelHeight);
-            ctx.moveTo(width / 2 + 30, levelY);
-            ctx.lineTo(width / 2 + 30, levelY + levelHeight);
-            ctx.lineWidth = 3;
-            ctx.strokeStyle = '#64748b';
-            ctx.stroke();
-
-            // Physics logic for Bubble Movement
+            // Calculate angle and bubble position
             let angleDeg = currentBoard.angle * (180 / Math.PI);
-            // In a real spirit level, the bubble moves to the HIGHEST point.
-            // If angle is positive (right side tilted down), bubble moves left.
-            let shift = angleDeg * -40; 
+            let sensitivity = 20; // How fast the bubble moves
             
-            // Limit the bubble from flying out of the tube
-            let maxShift = (levelWidth / 2) - 30; 
-            shift = Math.max(-maxShift, Math.min(maxShift, shift));
+            // In a spirit level, the bubble floats to the highest side. 
+            // If angle is positive (right side down), left side is up, so bubble moves left.
+            let bubbleOffset = -angleDeg * sensitivity;
+            
+            // Clamp bubble so it stays inside the tube
+            let maxOffset = (tubeWidth / 2) - 35;
+            bubbleOffset = Math.max(-maxOffset, Math.min(maxOffset, bubbleOffset));
 
-            const bubbleX = width / 2 + shift;
-            let isBalanced = Math.abs(angleDeg) < 0.8;
-
-            // Draw the Bubble
+            // Draw Bubble
             ctx.beginPath();
-            if (ctx.roundRect) {
-                ctx.roundRect(bubbleX - 22, levelY + 4, 44, levelHeight - 8, 18);
+            if(ctx.roundRect) {
+                ctx.roundRect(meterX + bubbleOffset - 25, meterY - tubeHeight/2 + 4, 50, tubeHeight - 8, 18);
             } else {
-                ctx.rect(bubbleX - 22, levelY + 4, 44, levelHeight - 8);
+                ctx.rect(meterX + bubbleOffset - 25, meterY - tubeHeight/2 + 4, 50, tubeHeight - 8);
             }
-            
-            // Bubble glows bright green if centered, neon blue if not
-            ctx.fillStyle = isBalanced ? '#22c55e' : '#38bdf8'; 
+            ctx.fillStyle = '#ecfeff'; 
             ctx.fill();
+            ctx.lineWidth = 2;
+            ctx.strokeStyle = '#38bdf8';
+            ctx.stroke();
 
-            // Render HUD Text below the level
-            ctx.font = 'bold 22px Nunito';
+            // Draw Target Center Lines
+            ctx.beginPath();
+            ctx.moveTo(meterX - 30, meterY - tubeHeight/2);
+            ctx.lineTo(meterX - 30, meterY + tubeHeight/2);
+            ctx.moveTo(meterX + 30, meterY - tubeHeight/2);
+            ctx.lineTo(meterX + 30, meterY + tubeHeight/2);
+            ctx.lineWidth = 3;
+            ctx.strokeStyle = '#0f172a';
+            ctx.stroke();
+
+            // Status Text
+            ctx.font = 'bold 24px Nunito';
             ctx.textAlign = 'center';
-            if (isBalanced) {
+            
+            if (Math.abs(angleDeg) < 0.6) {
                 ctx.fillStyle = '#16a34a';
-                ctx.fillText('PERFECTLY BALANCED', width / 2, levelY - 15);
-            } else if (angleDeg > 0.8) {
+                ctx.fillText('PERFECTLY BALANCED', meterX, meterY + 65);
+            } else if (angleDeg > 0.6) {
                 ctx.fillStyle = '#ef4444';
-                ctx.fillText('HEAVY RIGHT', width / 2, levelY - 15);
+                ctx.fillText('HEAVY RIGHT ↘', meterX, meterY + 65);
             } else {
                 ctx.fillStyle = '#ef4444';
-                ctx.fillText('HEAVY LEFT', width / 2, levelY - 15);
+                ctx.fillText('↙ HEAVY LEFT', meterX, meterY + 65);
             }
         }
     });
@@ -493,7 +494,14 @@
         });
     });
 
-    document.getElementById('resetBtn').addEventListener('click', initScene);
+    document.getElementById('resetBtn').addEventListener('click', () => {
+        sliders.f.value = 5.0;
+        sliders.l.value = 2.0;
+        sliders.fp.value = 8.0;
+        sliders.fm.value = 100;
+        updateDisplays();
+        initScene();
+    });
 
     updateDisplays();
     initScene();
