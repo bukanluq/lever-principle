@@ -17,6 +17,8 @@
             --accent: #ef4444;
             --accent-hover: #dc2626;
             --border: #e2e8f0;
+            --success: #16a34a;
+            --warning: #f59e0b;
         }
 
         body {
@@ -86,6 +88,7 @@
             align-items: center;
             box-shadow: inset 0 2px 4px rgba(0,0,0,0.02);
             margin-bottom: 20px;
+            position: relative;
         }
 
         #canvas-container canvas {
@@ -154,33 +157,63 @@
             transform: scale(1.15);
         }
 
-        /* Segmented Control Styles */
-        .segmented-control {
+        /* Custom Toggle Switch for Game Mode */
+        .switch-container {
             display: flex;
-            background: #e2e8f0;
-            border-radius: 8px;
-            padding: 4px;
-            margin-top: 5px;
+            align-items: center;
+            justify-content: space-between;
+            background: #e0e7ff;
+            border: 2px solid #a5b4fc;
+            padding: 12px 15px;
+            border-radius: 10px;
+            grid-column: 1 / -1;
         }
-        .segmented-control input {
-            display: none;
+        
+        .switch-container span {
+            font-weight: 900;
+            font-size: 16px;
+            color: #4338ca;
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
-        .segmented-control label {
-            flex: 1;
-            text-align: center;
-            padding: 10px 12px;
-            margin: 0;
-            font-size: 14px;
-            font-weight: 800;
-            color: #64748b;
+
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 50px;
+            height: 28px;
+        }
+        .switch input { 
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        .slider {
+            position: absolute;
             cursor: pointer;
-            border-radius: 6px;
-            transition: all 0.2s;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: #cbd5e1;
+            transition: .3s;
+            border-radius: 34px;
         }
-        .segmented-control input:checked + label {
-            background: #ffffff;
-            color: var(--primary);
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 20px;
+            width: 20px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: .3s;
+            border-radius: 50%;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+        input:checked + .slider {
+            background-color: var(--success);
+        }
+        input:checked + .slider:before {
+            transform: translateX(22px);
         }
 
         .action-row {
@@ -237,15 +270,13 @@
         <div id="canvas-container"></div>
 
         <div class="panel">
-            <div class="control-group" style="grid-column: 1 / -1;">
-                <label style="margin-bottom: 4px;">Physics Environment</label>
-                <div class="segmented-control">
-                    <input type="radio" id="modeIdeal" name="physicsMode" value="ideal">
-                    <label for="modeIdeal">Perfect Math</label>
-                    
-                    <input type="radio" id="modeReal" name="physicsMode" value="real" checked>
-                    <label for="modeReal">Real World</label>
-                </div>
+            
+            <div class="switch-container">
+                <span>🎮 Enable Game Mode</span>
+                <label class="switch">
+                    <input type="checkbox" id="gameModeToggle">
+                    <span class="slider"></span>
+                </label>
             </div>
 
             <div class="control-group">
@@ -266,9 +297,9 @@
             </div>
             
             <div class="action-row">
-                <button id="resetBtn">Reset Positions</button>
+                <button id="resetBtn">Reset Puzzle</button>
             </div>
-            <div class="hint">💡 Adjust the sliders to see real-time force and balance changes!</div>
+            <div class="hint">💡 Calculate the exact force required to balance the lever!</div>
         </div>
     </div>
 </div>
@@ -300,6 +331,10 @@
     });
 
     let currentBoard = null;
+    
+    // GAME STATE VARIABLES
+    let gameState = 'IDLE'; // IDLE, BALANCING, WON
+    let balanceStartTimestamp = 0;
 
     const sliders = {
         f: document.getElementById('fulcrumSlider'),
@@ -314,6 +349,8 @@
         fp: document.getElementById('fpVal'),
         fm: document.getElementById('fmVal')
     };
+    
+    const gameToggle = document.getElementById('gameModeToggle');
 
     function updateDisplays() {
         displays.f.innerText = parseFloat(sliders.f.value).toFixed(1);
@@ -322,9 +359,15 @@
         displays.fm.innerText = sliders.fm.value;
     }
 
+    function resetGameState() {
+        gameState = 'IDLE';
+        balanceStartTimestamp = 0;
+    }
+
     function initScene() {
         Composite.clear(engine.world);
         Engine.clear(engine);
+        resetGameState();
 
         const boardWidth = 1200; 
         const boardHeight = 24;
@@ -353,6 +396,7 @@
             render: { fillStyle: '#fbbf24' }, 
             density: 0.002, 
             friction: 0.8,
+            frictionAir: 0.04, // Real-world air resistance
             restitution: 0.1,
             chamfer: { radius: 6 },
             collisionFilter: { group: -1 }
@@ -422,52 +466,44 @@
             
             Body.applyForce(currentBoard, { x: forceGlobalX, y: forceGlobalY }, { x: 0, y: fMag });
 
-            // -------------------------------------------------------------
-            // DUAL MODE LOGIC: "Real World" vs "Perfect Math"
-            // -------------------------------------------------------------
-            const isRealWorld = document.getElementById('modeReal').checked;
-
-            if (isRealWorld) {
-                // REAL WORLD MODE: Air resistance and Pendulum effect active
-                currentBoard.frictionAir = 0.04;
-                currentBoard.torque -= currentBoard.angle * 0.02; // Restoring torque mimics real scale
-            } else {
-                // PERFECT MATH MODE: Low friction, no pendulum, magical snapping
-                currentBoard.frictionAir = 0.01;
-                
-                // Calculate theoretical moments to check for perfect balance
-                let fVal = parseFloat(sliders.f.value);
-                let lVal = parseFloat(sliders.l.value);
-                let fpVal = parseFloat(sliders.fp.value);
-                let fmVal = parseFloat(sliders.fm.value);
-
-                let loadMoment = 200 * Math.abs(lVal - fVal);
-                let forceMoment = fmVal * Math.abs(fpVal - fVal);
-
-                // If equations match (and forces are on opposite sides), 
-                // magnetically snap to a flat 0 angle immediately.
-                let momentsMatch = Math.abs(loadMoment - forceMoment) < 0.1;
-                let isOppositeSides = (lVal < fVal && fpVal > fVal) || (lVal > fVal && fpVal < fVal);
-
-                if (momentsMatch && isOppositeSides) {
-                    Body.setAngle(currentBoard, currentBoard.angle * 0.8); // Smooth "tractor beam" to 0
-                    Body.setAngularVelocity(currentBoard, currentBoard.angularVelocity * 0.5);
-                }
-            }
+            // Permanent Real World Physics: Pendulum effect
+            currentBoard.torque -= currentBoard.angle * 0.02; 
         }
     });
 
     Events.on(render, 'afterRender', function() {
         if (currentBoard) {
             const ctx = render.context;
+            let angleDeg = currentBoard.angle * (180 / Math.PI);
+            let isBalanced = Math.abs(angleDeg) < 0.6;
             
+            // --- GAME LOGIC ---
+            if (gameToggle.checked) {
+                if (isBalanced) {
+                    if (gameState === 'IDLE') {
+                        gameState = 'BALANCING';
+                        balanceStartTimestamp = Date.now();
+                    } else if (gameState === 'BALANCING') {
+                        let elapsed = Date.now() - balanceStartTimestamp;
+                        if (elapsed >= 4000) { // 1 sec stabilizing + 3 sec countdown
+                            gameState = 'WON';
+                        }
+                    }
+                } else {
+                    if (gameState !== 'WON') {
+                        gameState = 'IDLE'; // Reset if it tips over before winning!
+                    }
+                }
+            } else {
+                gameState = 'IDLE'; // Reset if game mode is turned off
+            }
+
             // --- 1. FORCE ARROW ---
             const fpPct = parseFloat(sliders.fp.value) / 10;
             const fmMag = parseInt(sliders.fm.value);
             const boardWidth = 1200;
             const startX = 200;
             const forceGlobalX = startX + (fpPct * boardWidth);
-            
             const dx = forceGlobalX - currentBoard.position.x;
             const forceGlobalY = currentBoard.position.y + Math.tan(currentBoard.angle) * dx;
 
@@ -476,7 +512,6 @@
             ctx.beginPath();
             ctx.moveTo(forceGlobalX, forceGlobalY - arrowLength - 30);
             ctx.lineTo(forceGlobalX, forceGlobalY - 30);
-            
             ctx.moveTo(forceGlobalX - 15, forceGlobalY - 45);
             ctx.lineTo(forceGlobalX, forceGlobalY - 25);
             ctx.lineTo(forceGlobalX + 15, forceGlobalY - 45);
@@ -492,10 +527,9 @@
             ctx.textAlign = 'center';
             ctx.fillText(fmMag + ' N', forceGlobalX, forceGlobalY - arrowLength - 45);
 
-
-            // --- 2. WATER BALANCER (SPIRIT LEVEL) HUD ---
+            // --- 2. WATER BALANCER HUD ---
             const meterX = width / 2;
-            const meterY = 120;
+            const meterY = 120; // Lowered slightly to make room for game text
             const tubeWidth = 400;
             const tubeHeight = 44;
 
@@ -511,9 +545,7 @@
             ctx.strokeStyle = '#94a3b8';
             ctx.stroke();
 
-            let angleDeg = currentBoard.angle * (180 / Math.PI);
             let sensitivity = 20; 
-            
             let bubbleOffset = -angleDeg * sensitivity;
             let maxOffset = (tubeWidth / 2) - 35;
             bubbleOffset = Math.max(-maxOffset, Math.min(maxOffset, bubbleOffset));
@@ -524,10 +556,11 @@
             } else {
                 ctx.rect(meterX + bubbleOffset - 25, meterY - tubeHeight/2 + 4, 50, tubeHeight - 8);
             }
-            ctx.fillStyle = '#ecfeff'; 
+            // Bubble turns green when perfectly balanced!
+            ctx.fillStyle = isBalanced ? '#bbf7d0' : '#ecfeff'; 
             ctx.fill();
             ctx.lineWidth = 2;
-            ctx.strokeStyle = '#38bdf8';
+            ctx.strokeStyle = isBalanced ? '#22c55e' : '#38bdf8';
             ctx.stroke();
 
             ctx.beginPath();
@@ -542,7 +575,7 @@
             ctx.font = 'bold 24px Nunito';
             ctx.textAlign = 'center';
             
-            if (Math.abs(angleDeg) < 0.6) {
+            if (isBalanced) {
                 ctx.fillStyle = '#16a34a';
                 ctx.fillText('PERFECTLY BALANCED', meterX, meterY + 65);
             } else if (angleDeg > 0.6) {
@@ -552,23 +585,64 @@
                 ctx.fillStyle = '#ef4444';
                 ctx.fillText('↙ HEAVY LEFT', meterX, meterY + 65);
             }
+
+            // --- 3. GAME UI OVERLAY ---
+            if (gameToggle.checked) {
+                ctx.save();
+                ctx.textAlign = 'center';
+                
+                if (gameState === 'BALANCING') {
+                    let elapsed = Date.now() - balanceStartTimestamp;
+                    if (elapsed < 1000) {
+                        ctx.fillStyle = '#f59e0b'; // Warning Orange
+                        ctx.font = '900 36px Nunito';
+                        ctx.fillText('STABILIZING...', width/2, 50);
+                    } else {
+                        // Math.ceil(4 - elapsed/1000) gives us 3, 2, 1
+                        let countdown = Math.ceil(4 - (elapsed / 1000));
+                        ctx.fillStyle = '#3b82f6'; // Bright Blue
+                        ctx.font = '900 54px Nunito';
+                        ctx.fillText('HOLD IT! ' + countdown, width/2, 55);
+                    }
+                } else if (gameState === 'WON') {
+                    // Confetti/Win styling
+                    ctx.shadowColor = "rgba(0,0,0,0.3)";
+                    ctx.shadowBlur = 10;
+                    ctx.shadowOffsetY = 4;
+                    ctx.fillStyle = '#16a34a'; // Green
+                    ctx.font = '900 64px Nunito';
+                    ctx.fillText('🏆 LEVEL CLEARED! 🏆', width/2, 60);
+                }
+                ctx.restore();
+            }
         }
     });
 
-    document.querySelectorAll('input').forEach(input => {
+    document.querySelectorAll('input[type="range"]').forEach(input => {
         input.addEventListener('input', () => {
             updateDisplays();
             if(input.id !== 'forcePosSlider' && input.id !== 'forceMagSlider') {
                 initScene(); 
+            } else {
+                // If sliding force sliders, reset game state so they don't cheat after winning
+                resetGameState();
             }
         });
     });
 
+    gameToggle.addEventListener('change', resetGameState);
+
     document.getElementById('resetBtn').addEventListener('click', () => {
-        sliders.f.value = 5.0;
-        sliders.l.value = 2.0;
+        // Create a random puzzle when reset is clicked!
+        sliders.f.value = (Math.floor(Math.random() * 6) + 2).toFixed(1); // 2.0 to 7.0
+        sliders.l.value = (Math.floor(Math.random() * 8) + 1).toFixed(1); // 1.0 to 8.0
+        
+        // Ensure load and fulcrum aren't on the exact same spot
+        if (sliders.f.value === sliders.l.value) sliders.l.value = (parseFloat(sliders.l.value) + 1).toFixed(1);
+
         sliders.fp.value = 8.0;
-        sliders.fm.value = 200;
+        sliders.fm.value = 10; // Reset force to min
+        
         updateDisplays();
         initScene();
     });
