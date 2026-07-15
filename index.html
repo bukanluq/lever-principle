@@ -6,59 +6,663 @@
     <title>RigidBody Lever Lab</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
     <style>
-        body { margin: 0; background: #f0f4f8; font-family: sans-serif; overflow: hidden; }
-        #canvas-container { width: 100vw; height: 100vh; }
-        .ui { position: absolute; top: 20px; left: 20px; background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;900&display=swap');
+
+        :root {
+            --primary: #4facfe;
+            --secondary: #00f2fe;
+            --accent: #ff0844;
+            --accent2: #ffb199;
+            --success: #38ef7d;
+            --success-dark: #11998e;
+            --bg-color: #f0f7fb;
+            --text-dark: #2d3436;
+            --panel-bg: #ffffff;
+            --board-color: #f3a683;
+            --fulcrum-color: #574b90;
+        }
+
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: 'Nunito', sans-serif;
+            background: var(--bg-color);
+            background-image: radial-gradient(#d1e5f0 2px, transparent 2px);
+            background-size: 30px 30px;
+            color: var(--text-dark);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 15px;
+            z-index: 10;
+        }
+
+        h1 {
+            margin: 0;
+            font-size: 2.2rem;
+            font-weight: 900;
+            color: var(--primary);
+            text-shadow: 2px 2px 0px rgba(0,0,0,0.1);
+        }
+
+        .main-container {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            width: 95vw;
+            max-width: 1400px;
+        }
+
+        @media (min-width: 1024px) {
+            .main-container {
+                flex-direction: row;
+                align-items: flex-start;
+            }
+        }
+
+        /* Canvas Area */
+        #game-container {
+            position: relative;
+            flex: 2.5;
+            height: 55vh;
+            min-height: 450px;
+            background: var(--panel-bg);
+            border-radius: 24px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            overflow: hidden;
+            border: 4px solid white;
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* Dashboard & Controls */
+        .controls-panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            min-width: 350px;
+        }
+
+        .dashboard {
+            background: #2d3436;
+            color: white;
+            padding: 20px;
+            border-radius: 20px;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.15);
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            text-align: center;
+        }
+
+        .dash-item {
+            display: flex;
+            flex-direction: column;
+            background: rgba(255,255,255,0.1);
+            padding: 10px;
+            border-radius: 12px;
+        }
+
+        .dash-item.full {
+            grid-column: 1 / -1;
+            background: var(--primary);
+            transition: background 0.3s;
+        }
+
+        .dash-item.full.balanced {
+            background: var(--success-dark);
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(56, 239, 125, 0.4); }
+            70% { box-shadow: 0 0 0 15px rgba(56, 239, 125, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(56, 239, 125, 0); }
+        }
+
+        .dash-label {
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            font-weight: 900;
+            letter-spacing: 1px;
+            color: rgba(255,255,255,0.8);
+        }
+
+        .dash-value {
+            font-size: 1.5rem;
+            font-weight: 900;
+        }
+
+        /* Sliders */
+        .slider-group {
+            background: var(--panel-bg);
+            padding: 15px;
+            border-radius: 20px;
+            box-shadow: 0 6px 15px rgba(0,0,0,0.05);
+            border: 2px solid var(--bg-color);
+        }
+
+        .slider-group.blue { border-left: 6px solid var(--primary); }
+        .slider-group.red { border-left: 6px solid var(--accent); }
+        .slider-group.purple { border-left: 6px solid var(--fulcrum-color); }
+
+        .slider-header {
+            display: flex;
+            justify-content: space-between;
+            font-weight: 900;
+            margin-bottom: 10px;
+            color: var(--text-dark);
+            font-size: 0.95rem;
+        }
+
+        input[type="range"] {
+            -webkit-appearance: none;
+            width: 100%;
+            height: 10px;
+            border-radius: 5px;
+            background: #dfe6e9;
+            outline: none;
+            margin: 10px 0;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: var(--text-dark);
+            cursor: pointer;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            transition: transform 0.1s;
+        }
+
+        input[type="range"]::-webkit-slider-thumb:hover { transform: scale(1.2); }
+        .blue input[type="range"]::-webkit-slider-thumb { background: var(--primary); }
+        .red input[type="range"]::-webkit-slider-thumb { background: var(--accent); }
+        .purple input[type="range"]::-webkit-slider-thumb { background: var(--fulcrum-color); }
+
+        /* Audio Overlay */
+        #audio-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(45, 52, 54, 0.9);
+            color: white;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            font-size: 2rem;
+            font-weight: 900;
+            cursor: pointer;
+            transition: opacity 0.3s;
+        }
     </style>
 </head>
 <body>
-    <div class="ui">
-        <h3>RigidBody Seesaw</h3>
-        <label>Mass Left (kg): </label><input type="range" id="massL" min="1" max="50" value="10"><br>
-        <label>Mass Right (kg): </label><input type="range" id="massR" min="1" max="50" value="10"><br>
-        <button onclick="resetScene()">Reset Simulation</button>
+
+    <div id="audio-overlay">Tap anywhere to enter the Lab! 🎵</div>
+
+    <header>
+        <h1>RigidBody Lever Lab</h1>
+    </header>
+
+    <div class="main-container">
+        <!-- Canvas -->
+        <div id="game-container">
+            <canvas id="gameCanvas"></canvas>
+        </div>
+
+        <!-- Dashboard & Controls -->
+        <div class="controls-panel">
+            
+            <div class="dashboard">
+                <div class="dash-item">
+                    <span class="dash-label">Left Torque (CCW)</span>
+                    <span class="dash-value" id="val-tq-left">0 N·m</span>
+                </div>
+                <div class="dash-item">
+                    <span class="dash-label">Right Torque (CW)</span>
+                    <span class="dash-value" id="val-tq-right">0 N·m</span>
+                </div>
+                <div class="dash-item full" id="status-panel">
+                    <span class="dash-label">System Status</span>
+                    <span class="dash-value" id="val-status">Initializing...</span>
+                </div>
+            </div>
+
+            <div class="slider-group purple">
+                <div class="slider-header">
+                    <span>📐 Fulcrum Position</span>
+                    <span id="lbl-fulcrum">5.0 m</span>
+                </div>
+                <input type="range" id="sl-fulcrum" min="1" max="9" step="0.1" value="5">
+            </div>
+
+            <div class="slider-group blue">
+                <div class="slider-header">
+                    <span>🟦 Load Mass</span>
+                    <span id="lbl-m1">10 kg</span>
+                </div>
+                <input type="range" id="sl-m1" min="1" max="100" step="1" value="10">
+                
+                <div class="slider-header" style="margin-top: 10px;">
+                    <span>📍 Position on Board</span>
+                    <span id="lbl-p1">2.0 m</span>
+                </div>
+                <input type="range" id="sl-p1" min="0" max="10" step="0.1" value="2">
+            </div>
+
+            <div class="slider-group red">
+                <div class="slider-header">
+                    <span>🟥 Force Mass</span>
+                    <span id="lbl-m2">20 kg</span>
+                </div>
+                <input type="range" id="sl-m2" min="1" max="100" step="1" value="20">
+                
+                <div class="slider-header" style="margin-top: 10px;">
+                    <span>📍 Position on Board</span>
+                    <span id="lbl-p2">8.0 m</span>
+                </div>
+                <input type="range" id="sl-p2" min="0" max="10" step="0.1" value="8">
+            </div>
+
+        </div>
     </div>
-    <div id="canvas-container"></div>
 
-<script>
-    const { Engine, Render, Runner, Bodies, Composite, Constraint, Body } = Matter;
+    <script>
+        // --- AUDIO ENGINE (Web Audio API) ---
+        let audioCtx;
+        function initAudio() {
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        }
 
-    const engine = Engine.create();
-    const render = Render.create({
-        element: document.getElementById('canvas-container'),
-        engine: engine,
-        options: { width: window.innerWidth, height: window.innerHeight, wireframes: false, background: '#f0f4f8' }
-    });
+        function playTone(freq, type, duration, vol = 0.1) {
+            if (!audioCtx) return;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = type;
+            osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+            gain.gain.setValueAtTime(vol, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
+            osc.connect(gain); gain.connect(audioCtx.destination);
+            osc.start(); osc.stop(audioCtx.currentTime + duration);
+        }
 
-    let seesaw, pivot;
+        function playThud(velocity) {
+            if (!audioCtx) return;
+            let vol = Math.min(Math.abs(velocity) * 2, 0.5); // Louder if hitting harder
+            if (vol < 0.05) return;
+            
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(80, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(20, audioCtx.currentTime + 0.1);
+            gain.gain.setValueAtTime(vol, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+            osc.connect(gain); gain.connect(audioCtx.destination);
+            osc.start(); osc.stop(audioCtx.currentTime + 0.1);
+        }
 
-    function resetScene() {
-        Composite.clear(engine.world);
-        
-        const ground = Bodies.rectangle(window.innerWidth/2, window.innerHeight - 50, window.innerWidth, 100, { isStatic: true });
-        const fulcrum = Bodies.trapezoid(window.innerWidth/2, window.innerHeight - 150, 80, 100, 1, { isStatic: true });
-        
-        seesaw = Bodies.rectangle(window.innerWidth/2, window.innerHeight - 220, 800, 20, { 
-            friction: 0.5, restitution: 0.2 
+        function playSuccess() {
+            setTimeout(() => playTone(440, 'triangle', 0.2, 0.1), 0);
+            setTimeout(() => playTone(554, 'triangle', 0.2, 0.1), 100);
+            setTimeout(() => playTone(659, 'triangle', 0.4, 0.1), 200);
+            setTimeout(() => playTone(880, 'sine', 0.6, 0.1), 300);
+        }
+
+        document.getElementById('audio-overlay').addEventListener('click', function() {
+            initAudio();
+            this.style.opacity = '0';
+            setTimeout(() => this.style.display = 'none', 300);
         });
 
-        pivot = Constraint.create({
-            pointA: { x: window.innerWidth/2, y: window.innerHeight - 200 },
-            bodyB: seesaw,
-            stiffness: 1,
-            length: 0
+        // --- MATTER.JS RIGIDBODY SETUP ---
+        const Engine = Matter.Engine,
+              Bodies = Matter.Bodies,
+              Composite = Matter.Composite,
+              Constraint = Matter.Constraint,
+              Body = Matter.Body,
+              Events = Matter.Events;
+
+        const engine = Engine.create();
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const container = document.getElementById('game-container');
+        
+        let width, height;
+        let ppx = 80; // Pixels per meter
+        const BOARD_LENGTH = 10; // 10 meters
+
+        // Physics Bodies
+        let ground, fulcrumBody, board, boxL, boxR, pinL, pinR, centerPivot;
+        let wasBalanced = false;
+
+        function resize() {
+            const rect = container.getBoundingClientRect();
+            width = rect.width;
+            height = rect.height;
+            const dpr = window.devicePixelRatio || 1;
+            canvas.width = width * dpr;
+            canvas.height = height * dpr;
+            ctx.scale(dpr, dpr);
+            ppx = (width * 0.8) / BOARD_LENGTH; 
+            
+            buildScene(); // Rebuild physics objects to fit new screen
+        }
+        window.addEventListener('resize', resize);
+
+        // --- UI BINDINGS ---
+        const ui = {
+            fulcrum: document.getElementById('sl-fulcrum'),
+            m1: document.getElementById('sl-m1'), p1: document.getElementById('sl-p1'),
+            m2: document.getElementById('sl-m2'), p2: document.getElementById('sl-p2'),
+            lblF: document.getElementById('lbl-fulcrum'),
+            lblM1: document.getElementById('lbl-m1'), lblP1: document.getElementById('lbl-p1'),
+            lblM2: document.getElementById('lbl-m2'), lblP2: document.getElementById('lbl-p2'),
+            tqLeft: document.getElementById('val-tq-left'),
+            tqRight: document.getElementById('val-tq-right'),
+            statusText: document.getElementById('val-status'),
+            statusPanel: document.getElementById('status-panel')
+        };
+
+        function updateUI() {
+            ui.lblF.innerText = parseFloat(ui.fulcrum.value).toFixed(1) + ' m';
+            ui.lblM1.innerText = ui.m1.value + ' kg';
+            ui.lblP1.innerText = parseFloat(ui.p1.value).toFixed(1) + ' m';
+            ui.lblM2.innerText = ui.m2.value + ' kg';
+            ui.lblP2.innerText = parseFloat(ui.p2.value).toFixed(1) + ' m';
+        }
+
+        // --- BUILD MATTER.JS SCENE ---
+        function buildScene() {
+            Composite.clear(engine.world);
+            Engine.clear(engine);
+
+            let cx = width / 2;
+            let cy = height * 0.75; // Ground level
+
+            // Static Elements
+            ground = Bodies.rectangle(cx, cy + 25, width * 2, 50, { 
+                isStatic: true, friction: 0.5, restitution: 0.2 
+            });
+            
+            // Fulcrum setup
+            let fVal = parseFloat(ui.fulcrum.value);
+            // We keep the fulcrum centered visually, and shift the board to match the meter setting
+            let fulcrumX = cx; 
+            fulcrumBody = Bodies.trapezoid(fulcrumX, cy - 40, 60, 80, 1, { 
+                isStatic: true, friction: 1 
+            });
+
+            // Board setup
+            let boardW = BOARD_LENGTH * ppx;
+            let boardH = 16;
+            
+            board = Bodies.rectangle(fulcrumX, cy - 80 - boardH/2, boardW, boardH, {
+                mass: 10, // Base mass of the board
+                friction: 0.8,
+                restitution: 0.1,
+                frictionAir: 0.02 // Air resistance to prevent infinite swinging
+            });
+
+            // Shift board so the fulcrum aligns with the user's selected meter
+            let attachmentOffset = (fVal - (BOARD_LENGTH / 2)) * ppx;
+            Body.setPosition(board, { x: fulcrumX - attachmentOffset, y: board.position.y });
+
+            centerPivot = Constraint.create({
+                bodyA: fulcrumBody,
+                pointA: { x: 0, y: -40 },
+                bodyB: board,
+                pointB: { x: attachmentOffset, y: 0 },
+                stiffness: 1,
+                length: 0
+            });
+
+            // Boxes setup
+            boxL = createBox(parseFloat(ui.m1.value));
+            boxR = createBox(parseFloat(ui.m2.value));
+            
+            Composite.add(engine.world, [ground, fulcrumBody, board, centerPivot, boxL, boxR]);
+            
+            updateBoxConstraints();
+        }
+
+        function createBox(mass) {
+            let size = 30 + Math.sqrt(mass) * 4; // Visual size based on mass
+            return Bodies.rectangle(0, 0, size, size, {
+                mass: mass,
+                friction: 1.0,
+                restitution: 0.1
+            });
+        }
+
+        function updateBoxConstraints() {
+            let p1 = parseFloat(ui.p1.value);
+            let p2 = parseFloat(ui.p2.value);
+            let boardLeftEdgeOffset = -(BOARD_LENGTH * ppx) / 2;
+
+            let offsetL = boardLeftEdgeOffset + (p1 * ppx);
+            let offsetR = boardLeftEdgeOffset + (p2 * ppx);
+
+            // Remove old constraints if they exist
+            if (pinL) Composite.remove(engine.world, pinL);
+            if (pinR) Composite.remove(engine.world, pinR);
+
+            // Create rigid constraints pinning the boxes to the exact spot on the board
+            pinL = Constraint.create({
+                bodyA: board, pointA: { x: offsetL, y: -8 },
+                bodyB: boxL, pointB: { x: 0, y: boxL.bounds.max.y - boxL.position.y },
+                stiffness: 1, length: 0
+            });
+            
+            pinR = Constraint.create({
+                bodyA: board, pointA: { x: offsetR, y: -8 },
+                bodyB: boxR, pointB: { x: 0, y: boxR.bounds.max.y - boxR.position.y },
+                stiffness: 1, length: 0
+            });
+
+            Composite.add(engine.world, [pinL, pinR]);
+        }
+
+        // Handle Slider Changes
+        [ui.fulcrum, ui.m1, ui.p1, ui.m2, ui.p2].forEach(el => {
+            el.addEventListener('input', () => {
+                updateUI();
+                
+                // If mass changed, update rigid body mass directly
+                Body.setMass(boxL, parseFloat(ui.m1.value));
+                Body.setMass(boxR, parseFloat(ui.m2.value));
+                
+                // For position changes, rebuilding the scene ensures physics stability
+                // instead of teleporting constraints while swinging
+                let currentAngle = board.angle;
+                let currentOmega = board.angularVelocity;
+                
+                buildScene();
+                
+                // Restore momentum so it doesn't freeze awkwardly
+                Body.setAngle(board, currentAngle);
+                Body.setAngularVelocity(board, currentOmega);
+            });
         });
 
-        // Add weights as RigidBodies
-        const weightL = Bodies.rectangle(window.innerWidth/2 - 300, window.innerHeight - 400, 50, 50, { mass: document.getElementById('massL').value });
-        const weightR = Bodies.rectangle(window.innerWidth/2 + 300, window.innerHeight - 400, 50, 50, { mass: document.getElementById('massR').value });
+        // Thud Sound on Collision
+        Events.on(engine, 'collisionStart', function(event) {
+            const pairs = event.pairs;
+            for (let i = 0; i < pairs.length; i++) {
+                const bodyA = pairs[i].bodyA;
+                const bodyB = pairs[i].bodyB;
+                // Check if board hits the ground
+                if ((bodyA === board && bodyB === ground) || (bodyB === board && bodyA === ground)) {
+                    playThud(board.angularVelocity);
+                }
+            }
+        });
 
-        Composite.add(engine.world, [ground, fulcrum, seesaw, pivot, weightL, weightR]);
-    }
+        // Calculate theoretical torque for the dashboard
+        Events.on(engine, 'afterUpdate', function() {
+            let fPos = parseFloat(ui.fulcrum.value);
+            let m1 = parseFloat(ui.m1.value);
+            let p1 = parseFloat(ui.p1.value);
+            let m2 = parseFloat(ui.m2.value);
+            let p2 = parseFloat(ui.p2.value);
+            let g = 9.81;
 
-    resetScene();
-    Render.run(render);
-    Runner.run(Runner.create(), engine);
-</script>
+            let d1 = fPos - p1;
+            let d2 = fPos - p2;
+            let dBoard = fPos - (BOARD_LENGTH / 2);
+
+            let tq1 = (m1 * g) * d1;
+            let tq2 = (m2 * g) * d2;
+            let tqBoard = (board.mass * g) * dBoard;
+
+            let tqLeft = (tq1 > 0 ? tq1 : 0) + (tq2 > 0 ? tq2 : 0) + (tqBoard > 0 ? tqBoard : 0);
+            let tqRight = Math.abs((tq1 < 0 ? tq1 : 0) + (tq2 < 0 ? tq2 : 0) + (tqBoard < 0 ? tqBoard : 0));
+
+            ui.tqLeft.innerText = tqLeft.toFixed(1) + ' N·m';
+            ui.tqRight.innerText = tqRight.toFixed(1) + ' N·m';
+
+            // Check Balance State
+            let isBalanced = Math.abs(tqLeft - tqRight) < 0.5 && Math.abs(board.angularVelocity) < 0.005 && Math.abs(board.angle) < 0.05;
+
+            if (isBalanced) {
+                ui.statusText.innerText = "⚖️ PERFECTLY BALANCED!";
+                ui.statusPanel.classList.add('balanced');
+                if (!wasBalanced) { playSuccess(); wasBalanced = true; }
+            } else {
+                ui.statusPanel.classList.remove('balanced');
+                wasBalanced = false;
+                if (board.angle > 0.02) ui.statusText.innerText = "Tipping Left ↙️";
+                else if (board.angle < -0.02) ui.statusText.innerText = "Tipping Right ↘️";
+                else ui.statusText.innerText = "Stabilizing...";
+            }
+        });
+
+        // --- CUSTOM RENDER LOOP ---
+        // Instead of Matter.js default render, we draw the bodies exactly how we want them
+        function draw() {
+            ctx.clearRect(0, 0, width, height);
+
+            // 1. Draw Ground
+            let cy = ground.position.y - 25; // Top edge of ground
+            ctx.fillStyle = '#dfe6e9';
+            ctx.fillRect(0, cy, width, height - cy);
+            ctx.strokeStyle = '#b2bec3';
+            ctx.lineWidth = 4;
+            ctx.beginPath(); ctx.moveTo(0, cy); ctx.lineTo(width, cy); ctx.stroke();
+
+            // 2. Draw Fulcrum
+            ctx.save();
+            ctx.translate(fulcrumBody.position.x, fulcrumBody.position.y);
+            ctx.beginPath();
+            ctx.moveTo(0, -40);
+            ctx.lineTo(-30, 40);
+            ctx.lineTo(30, 40);
+            ctx.closePath();
+            ctx.fillStyle = 'var(--fulcrum-color)';
+            ctx.fill();
+            ctx.lineWidth = 4;
+            ctx.strokeStyle = '#303952';
+            ctx.stroke();
+            ctx.restore();
+
+            // 3. Draw Board
+            ctx.save();
+            ctx.translate(board.position.x, board.position.y);
+            ctx.rotate(board.angle);
+
+            let boardW = BOARD_LENGTH * ppx;
+            let boardH = 16;
+            let leftEdge = -boardW / 2;
+
+            ctx.fillStyle = 'var(--board-color)';
+            ctx.beginPath();
+            ctx.roundRect(leftEdge, -boardH/2, boardW, boardH, 8);
+            ctx.fill();
+            ctx.strokeStyle = '#c44569';
+            ctx.lineWidth = 3;
+            ctx.stroke();
+
+            // Meter markings
+            ctx.fillStyle = 'rgba(0,0,0,0.4)';
+            ctx.font = 'bold 12px Nunito';
+            ctx.textAlign = 'center';
+            for(let i=0; i<=BOARD_LENGTH; i++) {
+                let mx = leftEdge + (i * ppx);
+                ctx.fillRect(mx - 1, -boardH/2, 2, boardH/2);
+                ctx.fillText(i, mx, boardH/2 + 14);
+            }
+            ctx.restore();
+
+            // 4. Draw Weights
+            function drawWeight(box, mass, color, label) {
+                ctx.save();
+                ctx.translate(box.position.x, box.position.y);
+                ctx.rotate(box.angle);
+                
+                let size = 30 + Math.sqrt(mass) * 4;
+                
+                // Box Body
+                ctx.fillStyle = color;
+                ctx.beginPath(); 
+                ctx.roundRect(-size/2, -size/2, size, size, 8); 
+                ctx.fill();
+                ctx.strokeStyle = 'rgba(0,0,0,0.2)';
+                ctx.lineWidth = 3; 
+                ctx.stroke();
+
+                // Text
+                ctx.fillStyle = 'white';
+                ctx.font = 'bold 14px Nunito';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(mass + 'kg', 0, 0);
+                
+                ctx.restore();
+            }
+
+            drawWeight(boxL, parseFloat(ui.m1.value), 'var(--primary)', 'Load');
+            drawWeight(boxR, parseFloat(ui.m2.value), 'var(--accent)', 'Force');
+
+            // 5. Draw Center Pin
+            ctx.fillStyle = 'white';
+            ctx.beginPath(); 
+            ctx.arc(fulcrumBody.position.x, fulcrumBody.position.y - 40, 6, 0, Math.PI*2); 
+            ctx.fill();
+            ctx.strokeStyle = '#2d3436'; 
+            ctx.stroke();
+
+            window.requestAnimationFrame(draw);
+        }
+
+        // Start Physics & Render loops
+        (function runPhysics() {
+            Engine.update(engine, 1000 / 60);
+            window.requestAnimationFrame(runPhysics);
+        })();
+
+        resize();
+        updateUI();
+        draw(); // Start custom render loop
+
+    </script>
 </body>
 </html>
