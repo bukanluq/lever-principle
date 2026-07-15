@@ -3,143 +3,180 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Lever Principle</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;900&display=swap" rel="stylesheet">
+    <title>Lever Physics Lab</title>
     <style>
+        @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;900&display=swap');
+
         :root {
-            --bg-page: #f0f4f8;
-            --card-bg: #ffffff;
-            --text-main: #334155;
-            --text-light: #64748b;
-            --primary: #3b82f6;
-            --primary-hover: #2563eb;
-            --accent: #ef4444;
-            --accent-hover: #dc2626;
-            --border: #e2e8f0;
-            --success: #16a34a;
-            --warning: #f59e0b;
+            --primary: #4facfe;
+            --secondary: #00f2fe;
+            --accent: #ff0844;
+            --accent2: #ffb199;
+            --success: #38ef7d;
+            --success-dark: #11998e;
+            --bg-color: #f0f7fb;
+            --text-dark: #2d3436;
+            --panel-bg: #ffffff;
+            --board-color: #f3a683;
+            --fulcrum-color: #574b90;
+        }
+
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
         }
 
         body {
+            margin: 0;
+            padding: 20px;
             font-family: 'Nunito', sans-serif;
-            background-color: var(--bg-page);
-            color: var(--text-main);
+            background: var(--bg-color);
+            background-image: radial-gradient(#d1e5f0 2px, transparent 2px);
+            background-size: 30px 30px;
+            color: var(--text-dark);
             display: flex;
             flex-direction: column;
             align-items: center;
-            margin: 0;
-            padding: 20px;
             min-height: 100vh;
+            overflow-x: hidden;
         }
 
-        .workspace {
-            background: var(--card-bg);
-            padding: 25px;
-            border-radius: 16px;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.05);
-            width: 95vw;
-            max-width: 1400px;
-            display: flex;
-            flex-direction: column;
-        }
-
-        h2 {
-            margin-top: 0;
-            color: var(--text-main);
-            font-weight: 900;
-            font-size: 32px;
-            border-bottom: 2px solid var(--border);
-            padding-bottom: 15px;
+        header {
             text-align: center;
-            margin-bottom: 25px;
+            margin-bottom: 15px;
+            z-index: 10;
         }
 
-        .main-layout {
+        h1 {
+            margin: 0;
+            font-size: 2.2rem;
+            font-weight: 900;
+            color: var(--primary);
+            text-shadow: 2px 2px 0px rgba(0,0,0,0.1);
+        }
+
+        .main-container {
             display: flex;
             flex-direction: column;
-            gap: 25px;
+            gap: 20px;
+            width: 95vw;
+            max-width: 1200px;
         }
 
         @media (min-width: 1024px) {
-            .main-layout {
+            .main-container {
                 flex-direction: row;
-                align-items: stretch;
-            }
-            #canvas-container {
-                flex: 2.5; 
-                margin-bottom: 0 !important;
-            }
-            .panel {
-                flex: 1;
-                display: flex;
-                flex-direction: column;
-                justify-content: center;
+                align-items: flex-start;
             }
         }
 
-        #canvas-container {
-            border: 2px solid var(--border);
-            background-color: #fafafa;
-            border-radius: 12px;
-            overflow: hidden;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            box-shadow: inset 0 2px 4px rgba(0,0,0,0.02);
-            margin-bottom: 20px;
+        /* Canvas Area */
+        #game-container {
             position: relative;
+            flex: 2;
+            height: 50vh;
+            min-height: 400px;
+            background: var(--panel-bg);
+            border-radius: 24px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            overflow: hidden;
+            border: 4px solid white;
         }
 
-        #canvas-container canvas {
-            width: 100% !important;
-            height: auto !important;
-            aspect-ratio: 16 / 8;
+        canvas {
             display: block;
+            width: 100%;
+            height: 100%;
         }
 
-        .panel {
-            display: grid;
-            grid-template-columns: 1fr;
-            gap: 15px;
-        }
-
-        @media (min-width: 600px) and (max-width: 1023px) {
-            .panel { grid-template-columns: 1fr 1fr; }
-        }
-
-        .control-group {
+        /* Dashboard & Controls */
+        .controls-panel {
+            flex: 1;
             display: flex;
             flex-direction: column;
-            background: #f8fafc;
-            padding: 15px;
-            border-radius: 10px;
-            border: 1px solid var(--border);
+            gap: 15px;
+            min-width: 350px;
         }
 
-        label {
+        .dashboard {
+            background: #2d3436;
+            color: white;
+            padding: 20px;
+            border-radius: 20px;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.15);
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            text-align: center;
+        }
+
+        .dash-item {
+            display: flex;
+            flex-direction: column;
+            background: rgba(255,255,255,0.1);
+            padding: 10px;
+            border-radius: 12px;
+        }
+
+        .dash-item.full {
+            grid-column: 1 / -1;
+            background: var(--primary);
+        }
+
+        .dash-item.full.balanced {
+            background: var(--success-dark);
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(56, 239, 125, 0.4); }
+            70% { box-shadow: 0 0 0 15px rgba(56, 239, 125, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(56, 239, 125, 0); }
+        }
+
+        .dash-label {
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            font-weight: 900;
+            letter-spacing: 1px;
+            color: rgba(255,255,255,0.8);
+        }
+
+        .dash-value {
+            font-size: 1.5rem;
+            font-weight: 900;
+        }
+
+        /* Sliders */
+        .slider-group {
+            background: var(--panel-bg);
+            padding: 15px;
+            border-radius: 20px;
+            box-shadow: 0 6px 15px rgba(0,0,0,0.05);
+            border: 2px solid var(--bg-color);
+        }
+
+        .slider-group.blue { border-left: 6px solid var(--primary); }
+        .slider-group.red { border-left: 6px solid var(--accent); }
+        .slider-group.purple { border-left: 6px solid var(--fulcrum-color); }
+
+        .slider-header {
             display: flex;
             justify-content: space-between;
-            font-size: 15px;
-            font-weight: 700;
-            color: var(--text-main);
-            margin-bottom: 12px;
-        }
-
-        label span {
-            background: var(--border);
-            padding: 2px 8px;
-            border-radius: 6px;
-            font-size: 13px;
+            font-weight: 900;
+            margin-bottom: 10px;
+            color: var(--text-dark);
         }
 
         input[type="range"] {
             -webkit-appearance: none;
             width: 100%;
-            background: #cbd5e1;
-            height: 8px;
-            border-radius: 4px;
+            height: 10px;
+            border-radius: 5px;
+            background: #dfe6e9;
             outline: none;
+            margin: 10px 0;
         }
 
         input[type="range"]::-webkit-slider-thumb {
@@ -147,512 +184,431 @@
             width: 24px;
             height: 24px;
             border-radius: 50%;
-            background: var(--primary);
+            background: var(--text-dark);
             cursor: pointer;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
             transition: transform 0.1s;
         }
 
         input[type="range"]::-webkit-slider-thumb:hover {
-            transform: scale(1.15);
+            transform: scale(1.2);
         }
 
-        /* Custom Toggle Switch for Game Mode */
-        .switch-container {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            background: #e0e7ff;
-            border: 2px solid #a5b4fc;
-            padding: 12px 15px;
-            border-radius: 10px;
-            grid-column: 1 / -1;
-        }
-        
-        .switch-container span {
-            font-weight: 900;
-            font-size: 16px;
-            color: #4338ca;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
+        .blue input[type="range"]::-webkit-slider-thumb { background: var(--primary); }
+        .red input[type="range"]::-webkit-slider-thumb { background: var(--accent); }
+        .purple input[type="range"]::-webkit-slider-thumb { background: var(--fulcrum-color); }
 
-        .switch {
-            position: relative;
-            display: inline-block;
-            width: 50px;
-            height: 28px;
-        }
-        .switch input { 
-            opacity: 0;
-            width: 0;
-            height: 0;
-        }
-        .slider {
-            position: absolute;
-            cursor: pointer;
-            top: 0; left: 0; right: 0; bottom: 0;
-            background-color: #cbd5e1;
-            transition: .3s;
-            border-radius: 34px;
-        }
-        .slider:before {
-            position: absolute;
-            content: "";
-            height: 20px;
-            width: 20px;
-            left: 4px;
-            bottom: 4px;
-            background-color: white;
-            transition: .3s;
-            border-radius: 50%;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-        }
-        input:checked + .slider {
-            background-color: var(--success);
-        }
-        input:checked + .slider:before {
-            transform: translateX(22px);
-        }
-
-        .action-row {
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
-            margin-top: 10px;
-        }
-
-        @media (min-width: 600px) and (max-width: 1023px) {
-            .action-row {
-                grid-column: span 2;
-                flex-direction: row;
-            }
-        }
-
-        button {
-            width: 100%;
-            padding: 16px;
-            background-color: var(--primary);
+        /* Audio Overlay */
+        #audio-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(45, 52, 54, 0.9);
             color: white;
-            border: none;
-            border-radius: 8px;
-            font-family: inherit;
-            font-size: 18px;
-            font-weight: 800;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            font-size: 2rem;
+            font-weight: 900;
             cursor: pointer;
-            transition: all 0.2s;
-            box-shadow: 0 4px 6px rgba(59, 130, 246, 0.2);
-        }
-
-        button:hover { background-color: var(--primary-hover); transform: translateY(-2px); }
-        button:active { transform: translateY(1px); box-shadow: none; }
-
-        .hint {
-            font-size: 14px;
-            color: var(--text-light);
-            text-align: center;
-            font-weight: 700;
-            margin-top: 10px;
-        }
-        
-        @media (min-width: 600px) and (max-width: 1023px) {
-            .hint { grid-column: span 2; }
+            transition: opacity 0.3s;
         }
     </style>
 </head>
 <body>
 
-<div class="workspace">
-    <h2>Lever Principle</h2>
-    
-    <div class="main-layout">
-        <div id="canvas-container"></div>
+    <div id="audio-overlay">Tap anywhere to enter the Lab! 🎵</div>
 
-        <div class="panel">
+    <header>
+        <h1>Lever Physics Lab</h1>
+    </header>
+
+    <div class="main-container">
+        <!-- Canvas -->
+        <div id="game-container">
+            <canvas id="gameCanvas"></canvas>
+        </div>
+
+        <!-- Dashboard & Controls -->
+        <div class="controls-panel">
             
-            <div class="switch-container">
-                <span>🎮 Enable Game Mode</span>
-                <label class="switch">
-                    <input type="checkbox" id="gameModeToggle">
-                    <span class="slider"></span>
-                </label>
+            <div class="dashboard">
+                <div class="dash-item">
+                    <span class="dash-label">Left Torque (CCW)</span>
+                    <span class="dash-value" id="val-tq-left">0 N·m</span>
+                </div>
+                <div class="dash-item">
+                    <span class="dash-label">Right Torque (CW)</span>
+                    <span class="dash-value" id="val-tq-right">0 N·m</span>
+                </div>
+                <div class="dash-item full" id="status-panel">
+                    <span class="dash-label">System Status</span>
+                    <span class="dash-value" id="val-status">Tipping Right!</span>
+                </div>
             </div>
 
-            <div class="control-group">
-                <label>Fulcrum Position <span><span id="fVal">5.0</span> m</span></label>
-                <input type="range" id="fulcrumSlider" min="1.0" max="9.0" step="0.1" value="5.0">
+            <div class="slider-group purple">
+                <div class="slider-header">
+                    <span>📐 Fulcrum Position</span>
+                    <span id="lbl-fulcrum">5.0 m</span>
+                </div>
+                <input type="range" id="sl-fulcrum" min="1" max="9" step="0.1" value="5">
             </div>
-            <div class="control-group">
-                <label>Load Position (200 N) <span><span id="lVal">2.0</span> m</span></label>
-                <input type="range" id="loadSlider" min="0.5" max="9.5" step="0.1" value="2.0">
+
+            <div class="slider-group blue">
+                <div class="slider-header">
+                    <span>🟦 Blue Box Mass (Load)</span>
+                    <span id="lbl-m1">10 kg</span>
+                </div>
+                <input type="range" id="sl-m1" min="1" max="100" step="1" value="10">
+                
+                <div class="slider-header" style="margin-top: 10px;">
+                    <span>📍 Position on Board</span>
+                    <span id="lbl-p1">2.0 m</span>
+                </div>
+                <input type="range" id="sl-p1" min="0" max="10" step="0.1" value="2">
             </div>
-            <div class="control-group">
-                <label>Force Input Point <span><span id="fpVal">8.0</span> m</span></label>
-                <input type="range" id="forcePosSlider" min="0.5" max="9.5" step="0.1" value="8.0">
+
+            <div class="slider-group red">
+                <div class="slider-header">
+                    <span>🟥 Red Box Mass (Force)</span>
+                    <span id="lbl-m2">20 kg</span>
+                </div>
+                <input type="range" id="sl-m2" min="1" max="100" step="1" value="20">
+                
+                <div class="slider-header" style="margin-top: 10px;">
+                    <span>📍 Position on Board</span>
+                    <span id="lbl-p2">8.0 m</span>
+                </div>
+                <input type="range" id="sl-p2" min="0" max="10" step="0.1" value="8">
             </div>
-            <div class="control-group">
-                <label>Force Magnitude <span><span id="fmVal">200</span> N</span></label>
-                <input type="range" id="forceMagSlider" min="10" max="500" step="10" value="200">
-            </div>
-            
-            <div class="action-row">
-                <button id="resetBtn">Reset Puzzle</button>
-            </div>
-            <div class="hint">💡 Calculate the exact force required to balance the lever!</div>
+
         </div>
     </div>
-</div>
 
-<script>
-    const Engine = Matter.Engine,
-          Render = Matter.Render,
-          Runner = Matter.Runner,
-          Bodies = Matter.Bodies,
-          Composite = Matter.Composite,
-          Constraint = Matter.Constraint,
-          Events = Matter.Events,
-          Body = Matter.Body;
-
-    const width = 1600;
-    const height = 800;
-    
-    const engine = Engine.create();
-    const render = Render.create({
-        element: document.getElementById('canvas-container'),
-        engine: engine,
-        options: {
-            width: width,
-            height: height,
-            wireframes: false,
-            background: '#fafafa',
-            pixelRatio: window.devicePixelRatio || 1
+    <script>
+        // --- AUDIO ENGINE (Web Audio API) ---
+        let audioCtx;
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
         }
-    });
 
-    let currentBoard = null;
-    
-    // GAME STATE VARIABLES
-    let gameState = 'IDLE'; // IDLE, BALANCING, WON
-    let balanceStartTimestamp = 0;
-
-    const sliders = {
-        f: document.getElementById('fulcrumSlider'),
-        l: document.getElementById('loadSlider'),
-        fp: document.getElementById('forcePosSlider'),
-        fm: document.getElementById('forceMagSlider')
-    };
-    
-    const displays = {
-        f: document.getElementById('fVal'),
-        l: document.getElementById('lVal'),
-        fp: document.getElementById('fpVal'),
-        fm: document.getElementById('fmVal')
-    };
-    
-    const gameToggle = document.getElementById('gameModeToggle');
-
-    function updateDisplays() {
-        displays.f.innerText = parseFloat(sliders.f.value).toFixed(1);
-        displays.l.innerText = parseFloat(sliders.l.value).toFixed(1);
-        displays.fp.innerText = parseFloat(sliders.fp.value).toFixed(1);
-        displays.fm.innerText = sliders.fm.value;
-    }
-
-    function resetGameState() {
-        gameState = 'IDLE';
-        balanceStartTimestamp = 0;
-    }
-
-    function initScene() {
-        Composite.clear(engine.world);
-        Engine.clear(engine);
-        resetGameState();
-
-        const boardWidth = 1200; 
-        const boardHeight = 24;
-        const startX = 200;
-        const boardY = 550; 
-        const fulcrumY = 612; 
-
-        const fPct = parseFloat(sliders.f.value) / 10;
-        const lPct = parseFloat(sliders.l.value) / 10;
-        
-        const fulcrumX = startX + (fPct * boardWidth);
-        const loadX = startX + (lPct * boardWidth);
-
-        const ground = Bodies.rectangle(width/2, height + 50, width + 200, 100, { 
-            isStatic: true, 
-            render: { fillStyle: '#e2e8f0' } 
-        });
-
-        const fulcrum = Bodies.trapezoid(fulcrumX, fulcrumY, 100, 100, 1, { 
-            isStatic: true, 
-            render: { fillStyle: '#3b82f6' },
-            collisionFilter: { group: -1 } 
-        });
-
-        const board = Bodies.rectangle(width/2, boardY, boardWidth, boardHeight, { 
-            render: { fillStyle: '#fbbf24' }, 
-            density: 0.002, 
-            friction: 0.8,
-            frictionAir: 0.04, // Real-world air resistance
-            restitution: 0.1,
-            chamfer: { radius: 6 },
-            collisionFilter: { group: -1 }
-        });
-        currentBoard = board;
-
-        const hinge = Constraint.create({
-            bodyA: fulcrum,
-            pointA: { x: 0, y: -50 }, 
-            bodyB: board,
-            pointB: { x: fulcrumX - (width/2), y: 12 }, 
-            stiffness: 1,
-            length: 0,
-            render: { visible: false }
-        });
-
-        const boxSize = 100;
-        const boxY = 488; 
-        
-        const loadBox = Bodies.rectangle(loadX, boxY, boxSize, boxSize, {
-            render: { fillStyle: '#ef4444' }, 
-            friction: 1.0,  
-            restitution: 0.0, 
-            chamfer: { radius: 10 },
-            collisionFilter: { group: -1 }
-        });
-        
-        Body.setMass(loadBox, 50);
-
-        const boxPin1 = Constraint.create({
-            bodyA: board,
-            pointA: { x: loadX - (width/2) - 30, y: -12 },
-            bodyB: loadBox,
-            pointB: { x: -30, y: 50 },
-            stiffness: 1,
-            length: 0,
-            render: { visible: false }
-        });
-        const boxPin2 = Constraint.create({
-            bodyA: board,
-            pointA: { x: loadX - (width/2) + 30, y: -12 },
-            bodyB: loadBox,
-            pointB: { x: 30, y: 50 },
-            stiffness: 1,
-            length: 0,
-            render: { visible: false }
-        });
-
-        Composite.add(engine.world, [ground, fulcrum, board, hinge, loadBox, boxPin1, boxPin2]);
-    }
-
-    Events.on(engine, 'beforeUpdate', function() {
-        if (currentBoard) {
-            // Cancel board gravity
-            const gravityForce = currentBoard.mass * engine.gravity.y * engine.gravity.scale;
-            Body.applyForce(currentBoard, currentBoard.position, { x: 0, y: -gravityForce });
-
-            const fpPct = parseFloat(sliders.fp.value) / 10;
-            const fMag = parseInt(sliders.fm.value) * 0.00025; 
-            
-            const boardWidth = 1200;
-            const startX = 200;
-            const forceGlobalX = startX + (fpPct * boardWidth);
-            
-            const dx = forceGlobalX - currentBoard.position.x;
-            const forceGlobalY = currentBoard.position.y + Math.tan(currentBoard.angle) * dx;
-            
-            Body.applyForce(currentBoard, { x: forceGlobalX, y: forceGlobalY }, { x: 0, y: fMag });
-
-            // Permanent Real World Physics: Pendulum effect
-            currentBoard.torque -= currentBoard.angle * 0.02; 
+        function playTone(freq, type, duration, vol = 0.1) {
+            if (!audioCtx) return;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = type;
+            osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+            gain.gain.setValueAtTime(vol, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start();
+            osc.stop(audioCtx.currentTime + duration);
         }
-    });
 
-    Events.on(render, 'afterRender', function() {
-        if (currentBoard) {
-            const ctx = render.context;
-            let angleDeg = currentBoard.angle * (180 / Math.PI);
-            let isBalanced = Math.abs(angleDeg) < 0.6;
+        function playThud() {
+            if (!audioCtx) return;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(100, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(20, audioCtx.currentTime + 0.15);
+            gain.gain.setValueAtTime(0.4, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.15);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.15);
+        }
+
+        function playSuccess() {
+            setTimeout(() => playTone(440, 'triangle', 0.2, 0.1), 0);
+            setTimeout(() => playTone(554, 'triangle', 0.2, 0.1), 100);
+            setTimeout(() => playTone(659, 'triangle', 0.4, 0.1), 200);
+            setTimeout(() => playTone(880, 'sine', 0.6, 0.1), 300);
+        }
+
+        document.getElementById('audio-overlay').addEventListener('click', function() {
+            initAudio();
+            this.style.opacity = '0';
+            setTimeout(() => this.style.display = 'none', 300);
+        });
+
+        // --- CANVAS SETUP ---
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const container = document.getElementById('game-container');
+        
+        let width, height;
+        let ppx = 60; // Pixels per meter
+
+        function resize() {
+            const rect = container.getBoundingClientRect();
+            width = rect.width;
+            height = rect.height;
+            const dpr = window.devicePixelRatio || 1;
+            canvas.width = width * dpr;
+            canvas.height = height * dpr;
+            ctx.scale(dpr, dpr);
             
-            // --- GAME LOGIC ---
-            if (gameToggle.checked) {
-                if (isBalanced) {
-                    if (gameState === 'IDLE') {
-                        gameState = 'BALANCING';
-                        balanceStartTimestamp = Date.now();
-                    } else if (gameState === 'BALANCING') {
-                        let elapsed = Date.now() - balanceStartTimestamp;
-                        if (elapsed >= 4000) { // 1 sec stabilizing + 3 sec countdown
-                            gameState = 'WON';
-                        }
-                    }
-                } else {
-                    if (gameState !== 'WON') {
-                        gameState = 'IDLE'; // Reset if it tips over before winning!
-                    }
+            // Adjust scaling so the 10m board fits nicely
+            ppx = (width * 0.8) / 10; 
+        }
+        window.addEventListener('resize', resize);
+
+        // --- UI BINDINGS ---
+        const ui = {
+            fulcrum: document.getElementById('sl-fulcrum'),
+            m1: document.getElementById('sl-m1'), p1: document.getElementById('sl-p1'),
+            m2: document.getElementById('sl-m2'), p2: document.getElementById('sl-p2'),
+            lblF: document.getElementById('lbl-fulcrum'),
+            lblM1: document.getElementById('lbl-m1'), lblP1: document.getElementById('lbl-p1'),
+            lblM2: document.getElementById('lbl-m2'), lblP2: document.getElementById('lbl-p2'),
+            tqLeft: document.getElementById('val-tq-left'),
+            tqRight: document.getElementById('val-tq-right'),
+            statusText: document.getElementById('val-status'),
+            statusPanel: document.getElementById('status-panel')
+        };
+
+        function updateUI() {
+            ui.lblF.innerText = parseFloat(ui.fulcrum.value).toFixed(1) + ' m';
+            ui.lblM1.innerText = ui.m1.value + ' kg';
+            ui.lblP1.innerText = parseFloat(ui.p1.value).toFixed(1) + ' m';
+            ui.lblM2.innerText = ui.m2.value + ' kg';
+            ui.lblP2.innerText = parseFloat(ui.p2.value).toFixed(1) + ' m';
+        }
+
+        [ui.fulcrum, ui.m1, ui.p1, ui.m2, ui.p2].forEach(el => {
+            el.addEventListener('input', () => {
+                updateUI();
+                // Awaken physics if sleeping
+                if (Math.abs(physics.omega) < 0.001) physics.omega += (Math.random() > 0.5 ? 0.01 : -0.01); 
+            });
+        });
+
+        // --- PHYSICS ENGINE ---
+        const physics = {
+            angle: 0,          // Radians
+            omega: 0,          // Angular velocity
+            gravity: 9.81,     // m/s^2
+            boardLength: 10,   // meters
+            boardMass: 5,      // kg (helps stabilize the simulation)
+            wasBalanced: false
+        };
+
+        function calculatePhysics(dt) {
+            let fPos = parseFloat(ui.fulcrum.value);
+            let m1 = parseFloat(ui.m1.value);
+            let p1 = parseFloat(ui.p1.value);
+            let m2 = parseFloat(ui.m2.value);
+            let p2 = parseFloat(ui.p2.value);
+
+            // Torque = Force * Distance. CCW is positive, CW is negative.
+            // Distance from fulcrum (left is positive direction for CCW torque)
+            let d1 = fPos - p1;
+            let d2 = fPos - p2;
+            let dBoard = fPos - (physics.boardLength / 2);
+
+            let tq1 = (m1 * physics.gravity) * d1;
+            let tq2 = (m2 * physics.gravity) * d2;
+            let tqBoard = (physics.boardMass * physics.gravity) * dBoard;
+
+            let netTorque = tq1 + tq2 + tqBoard;
+
+            // Moment of Inertia (I = m*r^2)
+            let i1 = m1 * (d1 * d1);
+            let i2 = m2 * (d2 * d2);
+            // Board inertia parallel axis theorem: I_center = (m*L^2)/12 + m*d^2
+            let iBoard = (physics.boardMass * Math.pow(physics.boardLength, 2)) / 12 + physics.boardMass * (dBoard * dBoard);
+            
+            let totalI = i1 + i2 + iBoard;
+            if (totalI < 1) totalI = 1; // Prevent zero division
+
+            // Angular Acceleration
+            let alpha = netTorque / totalI;
+
+            // Update velocity and position
+            physics.omega += alpha * dt;
+            physics.omega *= 0.96; // Damping (Friction)
+            physics.angle += physics.omega;
+
+            // Ground Collision Constraints
+            // Find max angle based on board hitting ground. Ground is flat.
+            // Distance from fulcrum to edge determines max angle.
+            let h = 80 / ppx; // Height of fulcrum in meters
+            let distLeft = fPos;
+            let distRight = physics.boardLength - fPos;
+            
+            let maxAngleCW = -Math.asin(h / distRight);
+            let maxAngleCCW = Math.asin(h / distLeft);
+
+            // Cap the angles slightly earlier to simulate box height hitting
+            maxAngleCW *= 0.9;
+            maxAngleCCW *= 0.9;
+
+            let hit = false;
+            if (physics.angle < maxAngleCW) {
+                physics.angle = maxAngleCW;
+                if (physics.omega < -0.05) { playThud(); hit = true; }
+                physics.omega = 0;
+            } else if (physics.angle > maxAngleCCW) {
+                physics.angle = maxAngleCCW;
+                if (physics.omega > 0.05) { playThud(); hit = true; }
+                physics.omega = 0;
+            }
+
+            // --- Dashboard Updates ---
+            // Sum all positive torques (CCW) and negative torques (CW) for display
+            let tqLeftDisplay = (tq1 > 0 ? tq1 : 0) + (tq2 > 0 ? tq2 : 0) + (tqBoard > 0 ? tqBoard : 0);
+            let tqRightDisplay = Math.abs((tq1 < 0 ? tq1 : 0) + (tq2 < 0 ? tq2 : 0) + (tqBoard < 0 ? tqBoard : 0));
+
+            ui.tqLeft.innerText = tqLeftDisplay.toFixed(1) + ' N·m';
+            ui.tqRight.innerText = tqRightDisplay.toFixed(1) + ' N·m';
+
+            let isBalanced = Math.abs(netTorque) < 1.0 && Math.abs(physics.omega) < 0.005 && Math.abs(physics.angle) < 0.1;
+
+            if (isBalanced) {
+                ui.statusText.innerText = "⚖️ PERFECTLY BALANCED!";
+                ui.statusPanel.classList.add('balanced');
+                if (!physics.wasBalanced) {
+                    playSuccess();
+                    physics.wasBalanced = true;
                 }
             } else {
-                gameState = 'IDLE'; // Reset if game mode is turned off
+                ui.statusPanel.classList.remove('balanced');
+                physics.wasBalanced = false;
+                if (physics.angle > 0.05) ui.statusText.innerText = "Tipping Left ↙️";
+                else if (physics.angle < -0.05) ui.statusText.innerText = "Tipping Right ↘️";
+                else ui.statusText.innerText = "Stabilizing...";
             }
+        }
 
-            // --- 1. FORCE ARROW ---
-            const fpPct = parseFloat(sliders.fp.value) / 10;
-            const fmMag = parseInt(sliders.fm.value);
-            const boardWidth = 1200;
-            const startX = 200;
-            const forceGlobalX = startX + (fpPct * boardWidth);
-            const dx = forceGlobalX - currentBoard.position.x;
-            const forceGlobalY = currentBoard.position.y + Math.tan(currentBoard.angle) * dx;
+        // --- RENDERING ---
+        function drawFrame() {
+            ctx.clearRect(0, 0, width, height);
 
-            const arrowLength = 50 + (fmMag * 0.2); 
+            let cx = width / 2;
+            let cy = height * 0.7; // Ground level
+
+            // 1. Draw Ground
+            ctx.fillStyle = '#dfe6e9';
+            ctx.fillRect(0, cy, width, height - cy);
+            ctx.strokeStyle = '#b2bec3';
+            ctx.lineWidth = 4;
+            ctx.beginPath(); ctx.moveTo(0, cy); ctx.lineTo(width, cy); ctx.stroke();
+
+            // Setup transforms for zooming based on ppx
+            let fPos = parseFloat(ui.fulcrum.value);
+            
+            // 2. Draw Fulcrum
+            let fulcrumWidth = 60;
+            let fulcrumHeight = 80;
+            
+            ctx.save();
+            ctx.translate(cx, cy);
             
             ctx.beginPath();
-            ctx.moveTo(forceGlobalX, forceGlobalY - arrowLength - 30);
-            ctx.lineTo(forceGlobalX, forceGlobalY - 30);
-            ctx.moveTo(forceGlobalX - 15, forceGlobalY - 45);
-            ctx.lineTo(forceGlobalX, forceGlobalY - 25);
-            ctx.lineTo(forceGlobalX + 15, forceGlobalY - 45);
-            
-            ctx.lineWidth = 10;
-            ctx.strokeStyle = '#ef4444';
-            ctx.lineCap = 'round';
-            ctx.lineJoin = 'round';
-            ctx.stroke();
-
-            ctx.fillStyle = '#ef4444';
-            ctx.font = 'bold 24px Nunito';
-            ctx.textAlign = 'center';
-            ctx.fillText(fmMag + ' N', forceGlobalX, forceGlobalY - arrowLength - 45);
-
-            // --- 2. WATER BALANCER HUD ---
-            const meterX = width / 2;
-            const meterY = 120; // Lowered slightly to make room for game text
-            const tubeWidth = 400;
-            const tubeHeight = 44;
-
-            ctx.beginPath();
-            if(ctx.roundRect) {
-                ctx.roundRect(meterX - tubeWidth/2, meterY - tubeHeight/2, tubeWidth, tubeHeight, 22);
-            } else {
-                ctx.rect(meterX - tubeWidth/2, meterY - tubeHeight/2, tubeWidth, tubeHeight);
-            }
-            ctx.fillStyle = '#bae6fd'; 
+            ctx.moveTo(0, -fulcrumHeight);
+            ctx.lineTo(-fulcrumWidth/2, 0);
+            ctx.lineTo(fulcrumWidth/2, 0);
+            ctx.closePath();
+            ctx.fillStyle = 'var(--fulcrum-color)';
             ctx.fill();
             ctx.lineWidth = 4;
-            ctx.strokeStyle = '#94a3b8';
+            ctx.strokeStyle = '#303952';
             ctx.stroke();
 
-            let sensitivity = 20; 
-            let bubbleOffset = -angleDeg * sensitivity;
-            let maxOffset = (tubeWidth / 2) - 35;
-            bubbleOffset = Math.max(-maxOffset, Math.min(maxOffset, bubbleOffset));
+            // 3. Draw Board
+            ctx.translate(0, -fulcrumHeight); // Pivot point
+            ctx.rotate(-physics.angle); // -angle because canvas y is inverted
 
+            let boardW = physics.boardLength * ppx;
+            let boardH = 16;
+            let boardLeftEdge = -fPos * ppx;
+
+            ctx.fillStyle = 'var(--board-color)';
             ctx.beginPath();
-            if(ctx.roundRect) {
-                ctx.roundRect(meterX + bubbleOffset - 25, meterY - tubeHeight/2 + 4, 50, tubeHeight - 8, 18);
-            } else {
-                ctx.rect(meterX + bubbleOffset - 25, meterY - tubeHeight/2 + 4, 50, tubeHeight - 8);
-            }
-            // Bubble turns green when perfectly balanced!
-            ctx.fillStyle = isBalanced ? '#bbf7d0' : '#ecfeff'; 
+            ctx.roundRect(boardLeftEdge, -boardH/2, boardW, boardH, 8);
             ctx.fill();
-            ctx.lineWidth = 2;
-            ctx.strokeStyle = isBalanced ? '#22c55e' : '#38bdf8';
-            ctx.stroke();
-
-            ctx.beginPath();
-            ctx.moveTo(meterX - 30, meterY - tubeHeight/2);
-            ctx.lineTo(meterX - 30, meterY + tubeHeight/2);
-            ctx.moveTo(meterX + 30, meterY - tubeHeight/2);
-            ctx.lineTo(meterX + 30, meterY + tubeHeight/2);
+            ctx.strokeStyle = '#c44569';
             ctx.lineWidth = 3;
-            ctx.strokeStyle = '#0f172a';
             ctx.stroke();
 
-            ctx.font = 'bold 24px Nunito';
+            // Draw meter markings on board
+            ctx.fillStyle = 'rgba(0,0,0,0.3)';
+            ctx.font = 'bold 12px Nunito';
             ctx.textAlign = 'center';
-            
-            if (isBalanced) {
-                ctx.fillStyle = '#16a34a';
-                ctx.fillText('PERFECTLY BALANCED', meterX, meterY + 65);
-            } else if (angleDeg > 0.6) {
-                ctx.fillStyle = '#ef4444';
-                ctx.fillText('HEAVY RIGHT ↘', meterX, meterY + 65);
-            } else {
-                ctx.fillStyle = '#ef4444';
-                ctx.fillText('↙ HEAVY LEFT', meterX, meterY + 65);
+            for(let i=0; i<=10; i++) {
+                let mx = boardLeftEdge + (i * ppx);
+                ctx.fillRect(mx - 1, -boardH/2, 2, boardH/2);
+                ctx.fillText(i, mx, boardH/2 + 14);
             }
 
-            // --- 3. GAME UI OVERLAY ---
-            if (gameToggle.checked) {
-                ctx.save();
-                ctx.textAlign = 'center';
+            // 4. Draw Weights
+            let m1 = parseFloat(ui.m1.value);
+            let p1 = parseFloat(ui.p1.value);
+            let m2 = parseFloat(ui.m2.value);
+            let p2 = parseFloat(ui.p2.value);
+
+            function drawBox(mass, pos, colorBase, label) {
+                // Size scales slightly with mass (sqrt to mimic volume)
+                let size = 30 + Math.sqrt(mass) * 4;
+                let boxX = boardLeftEdge + (pos * ppx);
                 
-                if (gameState === 'BALANCING') {
-                    let elapsed = Date.now() - balanceStartTimestamp;
-                    if (elapsed < 1000) {
-                        ctx.fillStyle = '#f59e0b'; // Warning Orange
-                        ctx.font = '900 36px Nunito';
-                        ctx.fillText('STABILIZING...', width/2, 50);
-                    } else {
-                        // Math.ceil(4 - elapsed/1000) gives us 3, 2, 1
-                        let countdown = Math.ceil(4 - (elapsed / 1000));
-                        ctx.fillStyle = '#3b82f6'; // Bright Blue
-                        ctx.font = '900 54px Nunito';
-                        ctx.fillText('HOLD IT! ' + countdown, width/2, 55);
-                    }
-                } else if (gameState === 'WON') {
-                    // Confetti/Win styling
-                    ctx.shadowColor = "rgba(0,0,0,0.3)";
-                    ctx.shadowBlur = 10;
-                    ctx.shadowOffsetY = 4;
-                    ctx.fillStyle = '#16a34a'; // Green
-                    ctx.font = '900 64px Nunito';
-                    ctx.fillText('🏆 LEVEL CLEARED! 🏆', width/2, 60);
-                }
+                ctx.save();
+                ctx.translate(boxX, -boardH/2);
+                
+                // Shadow
+                ctx.fillStyle = 'rgba(0,0,0,0.2)';
+                ctx.beginPath(); ctx.ellipse(0, 0, size/2, 4, 0, 0, Math.PI*2); ctx.fill();
+
+                // Box
+                ctx.fillStyle = colorBase;
+                ctx.beginPath(); ctx.roundRect(-size/2, -size, size, size, 8); ctx.fill();
+                ctx.strokeStyle = 'rgba(0,0,0,0.2)';
+                ctx.lineWidth = 3; ctx.stroke();
+
+                // Label
+                ctx.fillStyle = 'white';
+                ctx.font = 'bold 14px Nunito';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(mass + 'kg', 0, -size/2);
                 ctx.restore();
             }
+
+            drawBox(m1, p1, 'var(--primary)', 'Blue');
+            drawBox(m2, p2, 'var(--accent)', 'Red');
+
+            // Draw Pivot Pin
+            ctx.fillStyle = 'white';
+            ctx.beginPath(); ctx.arc(0, 0, 6, 0, Math.PI*2); ctx.fill();
+            ctx.strokeStyle = '#2d3436'; ctx.stroke();
+
+            ctx.restore();
         }
-    });
 
-    document.querySelectorAll('input[type="range"]').forEach(input => {
-        input.addEventListener('input', () => {
-            updateDisplays();
-            if(input.id !== 'forcePosSlider' && input.id !== 'forceMagSlider') {
-                initScene(); 
-            } else {
-                // If sliding force sliders, reset game state so they don't cheat after winning
-                resetGameState();
-            }
-        });
-    });
+        // --- GAME LOOP ---
+        let lastTime = 0;
+        function loop(timestamp) {
+            let dt = (timestamp - lastTime) / 1000;
+            if (dt > 0.05) dt = 0.016; // Prevent massive jumps if tab was inactive
+            lastTime = timestamp;
 
-    gameToggle.addEventListener('change', resetGameState);
+            calculatePhysics(dt);
+            drawFrame();
+            
+            requestAnimationFrame(loop);
+        }
 
-    document.getElementById('resetBtn').addEventListener('click', () => {
-        // Create a random puzzle when reset is clicked!
-        sliders.f.value = (Math.floor(Math.random() * 6) + 2).toFixed(1); // 2.0 to 7.0
-        sliders.l.value = (Math.floor(Math.random() * 8) + 1).toFixed(1); // 1.0 to 8.0
-        
-        // Ensure load and fulcrum aren't on the exact same spot
-        if (sliders.f.value === sliders.l.value) sliders.l.value = (parseFloat(sliders.l.value) + 1).toFixed(1);
+        // Initialize
+        resize();
+        updateUI();
+        requestAnimationFrame(loop);
 
-        sliders.fp.value = 8.0;
-        sliders.fm.value = 10; // Reset force to min
-        
-        updateDisplays();
-        initScene();
-    });
-
-    updateDisplays();
-    initScene();
-    Render.run(render);
-    
-    const runner = Runner.create();
-    Runner.run(runner, engine);
-</script>
+    </script>
 </body>
 </html>
