@@ -257,6 +257,10 @@
             fulcrumPos = level.initialFulcrum;
             beamWrapper.style.transform = `rotate(0deg)`;
 
+            // Reset Push Button
+            pushBtn.classList.remove('opacity-50', 'pointer-events-none');
+            pushBtn.textContent = "PUSH!";
+
             // Apply Theme UI
             appEl.className = `flex-1 flex flex-col relative transition-colors duration-500 ${level.bgClass}`;
             themeNameEl.textContent = level.themeName;
