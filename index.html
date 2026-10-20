@@ -2,674 +2,496 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RigidBody Lever Lab</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>The Fix-It Crew: Lever Workshop</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;700;900&display=swap" rel="stylesheet">
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;900&display=swap');
-
-        :root {
-            --primary: #4facfe;
-            --secondary: #00f2fe;
-            --accent: #ff0844;
-            --accent2: #ffb199;
-            --success: #38ef7d;
-            --success-dark: #11998e;
-            --bg-color: #f0f7fb;
-            --text-dark: #2d3436;
-            --panel-bg: #ffffff;
-            --board-color: #f3a683;
-            --fulcrum-color: #574b90;
-        }
-
-        * {
-            box-sizing: border-box;
-            user-select: none;
-            -webkit-user-select: none;
-        }
-
         body {
-            margin: 0;
-            padding: 20px;
             font-family: 'Nunito', sans-serif;
-            background: var(--bg-color);
-            background-image: radial-gradient(#d1e5f0 2px, transparent 2px);
-            background-size: 30px 30px;
-            color: var(--text-dark);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            min-height: 100vh;
+            touch-action: pan-y; /* Prevent horizontal swipe navigation on mobile */
             overflow-x: hidden;
         }
-
-        header {
-            text-align: center;
-            margin-bottom: 15px;
-            z-index: 10;
+        h1, h2, h3, .chunky-text {
+            font-family: 'Fredoka One', cursive;
+        }
+        
+        /* The Beam and Tipping Animation */
+        #beam-wrapper {
+            transition: transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1); /* Bouncy physics feel */
+        }
+        
+        /* Draggable Fulcrum Touch Target */
+        #fulcrum-touch-target {
+            touch-action: none; /* Crucial for custom touch drag */
+        }
+        
+        /* 3D Button Push Effect */
+        .btn-3d {
+            transition: all 0.1s;
+        }
+        .btn-3d:active {
+            transform: translateY(4px);
+            border-bottom-width: 0px !important;
+            margin-top: 4px;
         }
 
-        h1 {
-            margin: 0;
-            font-size: 2.2rem;
-            font-weight: 900;
-            color: var(--primary);
-            text-shadow: 2px 2px 0px rgba(0,0,0,0.1);
+        /* Diagonal stripes for effort zone */
+        .stripes {
+            background-image: repeating-linear-gradient(
+                45deg,
+                rgba(255, 255, 255, 0.2),
+                rgba(255, 255, 255, 0.2) 10px,
+                transparent 10px,
+                transparent 20px
+            );
         }
 
-        .main-container {
-            display: flex;
-            flex-direction: column;
-            gap: 20px;
-            width: 95vw;
-            max-width: 1400px;
-        }
-
-        @media (min-width: 1024px) {
-            .main-container {
-                flex-direction: row;
-                align-items: flex-start;
-            }
-        }
-
-        /* Canvas Area */
-        #game-container {
-            position: relative;
-            flex: 2.5;
-            height: 55vh;
-            min-height: 450px;
-            background: var(--panel-bg);
-            border-radius: 24px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
-            overflow: hidden;
-            border: 4px solid white;
-        }
-
-        canvas {
-            display: block;
-            width: 100%;
-            height: 100%;
-        }
-
-        /* Dashboard & Controls */
-        .controls-panel {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
-            min-width: 350px;
-        }
-
-        .dashboard {
-            background: #2d3436;
-            color: white;
-            padding: 20px;
-            border-radius: 20px;
-            box-shadow: 0 10px 20px rgba(0,0,0,0.15);
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 10px;
-            text-align: center;
-        }
-
-        .dash-item {
-            display: flex;
-            flex-direction: column;
-            background: rgba(255,255,255,0.1);
-            padding: 10px;
-            border-radius: 12px;
-        }
-
-        .dash-item.full {
-            grid-column: 1 / -1;
-            background: var(--primary);
-            transition: background 0.3s;
-        }
-
-        .dash-item.full.balanced {
-            background: var(--success-dark);
-            animation: pulse 1.5s infinite;
-        }
-
-        @keyframes pulse {
-            0% { box-shadow: 0 0 0 0 rgba(56, 239, 125, 0.4); }
-            70% { box-shadow: 0 0 0 15px rgba(56, 239, 125, 0); }
-            100% { box-shadow: 0 0 0 0 rgba(56, 239, 125, 0); }
-        }
-
-        .dash-label {
-            font-size: 0.8rem;
-            text-transform: uppercase;
-            font-weight: 900;
-            letter-spacing: 1px;
-            color: rgba(255,255,255,0.8);
-        }
-
-        .dash-value {
-            font-size: 1.5rem;
-            font-weight: 900;
-        }
-
-        /* Sliders */
-        .slider-group {
-            background: var(--panel-bg);
-            padding: 15px;
-            border-radius: 20px;
-            box-shadow: 0 6px 15px rgba(0,0,0,0.05);
-            border: 2px solid var(--bg-color);
-        }
-
-        .slider-group.blue { border-left: 6px solid var(--primary); }
-        .slider-group.red { border-left: 6px solid var(--accent); }
-        .slider-group.purple { border-left: 6px solid var(--fulcrum-color); }
-
-        .slider-header {
-            display: flex;
-            justify-content: space-between;
-            font-weight: 900;
-            margin-bottom: 10px;
-            color: var(--text-dark);
-            font-size: 0.95rem;
-        }
-
-        input[type="range"] {
-            -webkit-appearance: none;
-            width: 100%;
-            height: 10px;
-            border-radius: 5px;
-            background: #dfe6e9;
-            outline: none;
-            margin: 10px 0;
-        }
-
-        input[type="range"]::-webkit-slider-thumb {
-            -webkit-appearance: none;
-            width: 24px;
-            height: 24px;
-            border-radius: 50%;
-            background: var(--text-dark);
-            cursor: pointer;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-            transition: transform 0.1s;
-        }
-
-        input[type="range"]::-webkit-slider-thumb:hover { transform: scale(1.2); }
-        .blue input[type="range"]::-webkit-slider-thumb { background: var(--primary); }
-        .red input[type="range"]::-webkit-slider-thumb { background: var(--accent); }
-        .purple input[type="range"]::-webkit-slider-thumb { background: var(--fulcrum-color); }
-
-        /* Audio Overlay */
-        #audio-overlay {
-            position: fixed;
-            top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(45, 52, 54, 0.9);
-            color: white;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            z-index: 1000;
-            font-size: 2rem;
-            font-weight: 900;
-            cursor: pointer;
-            transition: opacity 0.3s;
+        /* Checkered flag styling for goals */
+        .scientst-panel {
+            box-shadow: inset 0 0 15px rgba(0,0,0,0.5);
         }
     </style>
 </head>
-<body>
+<body class="bg-gray-100 min-h-screen flex flex-col selection:bg-transparent">
 
-    <div id="audio-overlay">Tap anywhere to enter the Lab! 🎵</div>
-
-    <header>
-        <h1>RigidBody Lever Lab</h1>
-    </header>
-
-    <div class="main-container">
-        <!-- Canvas -->
-        <div id="game-container">
-            <canvas id="gameCanvas"></canvas>
-        </div>
-
-        <!-- Dashboard & Controls -->
-        <div class="controls-panel">
+    <!-- Game Container -->
+    <div id="app" class="flex-1 flex flex-col relative transition-colors duration-500">
+        
+        <!-- Header -->
+        <header class="p-4 flex justify-between items-center bg-white/20 backdrop-blur-md shadow-sm z-20">
+            <div class="flex items-center gap-3">
+                <div class="w-12 h-12 bg-yellow-400 rounded-full flex items-center justify-center text-2xl shadow-md border-2 border-white">
+                    🤖
+                </div>
+                <div>
+                    <h1 class="text-xl text-white drop-shadow-md">Fix-It Crew</h1>
+                    <p id="theme-name" class="text-sm font-bold text-yellow-300 drop-shadow-sm">Sector 1</p>
+                </div>
+            </div>
             
-            <div class="dashboard">
-                <div class="dash-item">
-                    <span class="dash-label">Left Torque (CCW)</span>
-                    <span class="dash-value" id="val-tq-left">0 N·m</span>
-                </div>
-                <div class="dash-item">
-                    <span class="dash-label">Right Torque (CW)</span>
-                    <span class="dash-value" id="val-tq-right">0 N·m</span>
-                </div>
-                <div class="dash-item full" id="status-panel">
-                    <span class="dash-label">System Status</span>
-                    <span class="dash-value" id="val-status">Initializing...</span>
-                </div>
+            <!-- Scientist Mode Toggle -->
+            <div class="flex items-center gap-2 bg-white/30 px-3 py-2 rounded-xl backdrop-blur-sm border border-white/40 shadow-sm">
+                <span class="text-white font-bold text-sm">💡 Scientist Mode</span>
+                <button id="toggle-scientist" class="w-12 h-6 bg-gray-400 rounded-full relative transition-colors duration-300">
+                    <div id="toggle-knob" class="w-5 h-5 bg-white rounded-full absolute top-0.5 left-0.5 transition-transform duration-300 shadow-sm"></div>
+                </button>
             </div>
+        </header>
 
-            <div class="slider-group purple">
-                <div class="slider-header">
-                    <span>📐 Fulcrum Position</span>
-                    <span id="lbl-fulcrum">5.0 m</span>
-                </div>
-                <input type="range" id="sl-fulcrum" min="1" max="9" step="0.1" value="5">
+        <!-- Mission Briefing -->
+        <div class="px-4 mt-6 z-10 max-w-2xl mx-auto w-full">
+            <div class="bg-white rounded-2xl p-4 shadow-xl border-4 border-white/50 relative overflow-hidden">
+                <div class="absolute -right-4 -top-4 text-6xl opacity-20">📋</div>
+                <h2 id="goal-title" class="text-2xl text-gray-800 mb-1 chunky-text">Job 1</h2>
+                <p id="goal-text" class="text-gray-600 font-bold text-lg"></p>
             </div>
-
-            <div class="slider-group blue">
-                <div class="slider-header">
-                    <span>🟦 Load Mass</span>
-                    <span id="lbl-m1">10 kg</span>
-                </div>
-                <input type="range" id="sl-m1" min="1" max="100" step="1" value="10">
-                
-                <div class="slider-header" style="margin-top: 10px;">
-                    <span>📍 Position on Board</span>
-                    <span id="lbl-p1">2.0 m</span>
-                </div>
-                <input type="range" id="sl-p1" min="0" max="10" step="0.1" value="2">
-            </div>
-
-            <div class="slider-group red">
-                <div class="slider-header">
-                    <span>🟥 Force Mass</span>
-                    <span id="lbl-m2">20 kg</span>
-                </div>
-                <input type="range" id="sl-m2" min="1" max="100" step="1" value="20">
-                
-                <div class="slider-header" style="margin-top: 10px;">
-                    <span>📍 Position on Board</span>
-                    <span id="lbl-p2">8.0 m</span>
-                </div>
-                <input type="range" id="sl-p2" min="0" max="10" step="0.1" value="8">
-            </div>
-
         </div>
+
+        <!-- Scientist Math Panel (Hidden by default) -->
+        <div id="scientist-panel" class="hidden px-4 mt-4 z-10 max-w-2xl mx-auto w-full transition-all">
+            <div class="bg-gray-900 rounded-xl p-4 border-4 border-gray-700 scientst-panel text-green-400 font-mono text-sm md:text-base grid grid-cols-2 gap-4">
+                <div class="flex flex-col items-center bg-black/40 p-2 rounded-lg">
+                    <span class="text-gray-400 mb-1 text-xs uppercase tracking-wider">Load Torque</span>
+                    <span id="math-load" class="font-bold text-lg text-fuchsia-400">4 × 3 = 12</span>
+                </div>
+                <div class="flex flex-col items-center bg-black/40 p-2 rounded-lg">
+                    <span class="text-gray-400 mb-1 text-xs uppercase tracking-wider">Effort Torque</span>
+                    <span id="math-effort" class="font-bold text-lg text-emerald-400">2 × 4 = 8</span>
+                </div>
+                <div class="col-span-2 text-center text-xs text-gray-300 border-t border-gray-700 pt-2">
+                    Rule: <span class="text-white">Effort Torque</span> must be <span id="math-rule-word" class="text-yellow-400">Equal to</span> <span class="text-white">Load Torque</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Physics Stage -->
+        <div class="flex-1 flex flex-col justify-end pb-8 relative mt-12 mx-auto w-full max-w-4xl px-4 touch-none" id="stage-area">
+            
+            <!-- Machine Container -->
+            <div class="relative w-full h-48 sm:h-64 mt-auto">
+                
+                <!-- Fulcrum Target Area (Draggable) -->
+                <!-- We separate the touch target from the visual so it's easier to grab -->
+                <div id="fulcrum-touch-target" class="absolute bottom-0 w-24 h-24 z-30 cursor-grab flex justify-center items-end" style="left: 50%; transform: translateX(-50%);">
+                    <!-- Visual Fulcrum (Triangle) -->
+                    <div class="w-0 h-0 border-l-[30px] border-l-transparent border-r-[30px] border-r-transparent border-b-[50px] border-b-yellow-400 drop-shadow-xl relative">
+                        <!-- Triangle inner details -->
+                        <div class="absolute top-[10px] -left-[10px] w-0 h-0 border-l-[10px] border-l-transparent border-r-[10px] border-r-transparent border-b-[15px] border-b-yellow-300"></div>
+                        <div class="absolute top-[35px] -left-[4px] w-2 h-2 bg-yellow-600 rounded-full"></div>
+                    </div>
+                </div>
+
+                <!-- The Beam Wrapper (Pivots from the exact center of the fulcrum tip) -->
+                <!-- Set bottom to match the height of the fulcrum (50px) -->
+                <div id="beam-wrapper" class="absolute bottom-[50px] w-full h-8 z-20" style="transform-origin: 50% 100%;">
+                    <!-- Actual Beam Visual -->
+                    <div id="beam-visual" class="w-full h-full rounded-md shadow-lg relative flex items-center border-b-4 border-black/20">
+                        <!-- Notches Container -->
+                        <div class="absolute w-full h-full flex justify-between px-[2px] items-end pb-1">
+                            <!-- 11 Notches (0 to 10) injected via JS -->
+                        </div>
+
+                        <!-- Load Container (Left side usually) -->
+                        <div id="load-container" class="absolute bottom-full mb-1 flex flex-col items-center justify-end" style="left: 10%; transform: translateX(-50%);">
+                            <!-- Load Weight Visual injected via JS -->
+                        </div>
+
+                        <!-- Effort Container (Right side usually) -->
+                        <div id="effort-container" class="absolute bottom-full mb-1 flex flex-col items-center justify-end" style="left: 90%; transform: translateX(-50%);">
+                            <!-- Effort Visual injected via JS -->
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Base Ground Line -->
+                <div class="absolute bottom-0 w-full h-3 bg-black/20 rounded-full blur-[2px]"></div>
+            </div>
+        </div>
+
+        <!-- Controls -->
+        <div class="p-6 pb-10 flex justify-center bg-gradient-to-t from-black/20 to-transparent z-20">
+            <button id="push-btn" class="btn-3d chunky-text text-3xl px-12 py-5 bg-red-500 text-white rounded-3xl border-b-[8px] border-red-700 shadow-2xl active:bg-red-400 tracking-wider">
+                PUSH!
+            </button>
+        </div>
+
+        <!-- Overlays / Modals -->
+        <div id="modal-overlay" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden opacity-0 transition-opacity duration-300">
+            <div class="bg-white rounded-3xl p-8 max-w-sm w-full text-center shadow-2xl border-8 border-yellow-400 transform scale-95 transition-transform duration-300" id="modal-box">
+                <h2 id="modal-title" class="text-4xl chunky-text mb-4 text-green-500">Success!</h2>
+                <p id="modal-text" class="text-gray-600 font-bold text-lg mb-8">You found the perfect mechanical advantage!</p>
+                <button id="modal-btn" class="btn-3d w-full chunky-text text-2xl py-4 bg-yellow-400 text-yellow-900 rounded-2xl border-b-[6px] border-yellow-600 shadow-lg">
+                    Next Job 🚀
+                </button>
+            </div>
+        </div>
+
     </div>
 
     <script>
-        // --- POLYFILL FOR ROUNDRECT ---
-        if (!CanvasRenderingContext2D.prototype.roundRect) {
-            CanvasRenderingContext2D.prototype.roundRect = function (x, y, w, h, r) {
-                if (w < 2 * r) r = w / 2;
-                if (h < 2 * r) r = h / 2;
-                this.moveTo(x + r, y);
-                this.arcTo(x + w, y, x + w, y + h, r);
-                this.arcTo(x + w, y + h, x, y + h, r);
-                this.arcTo(x, y + h, x, y, r);
-                this.arcTo(x, y, x + w, y, r);
-                return this;
-            };
-        }
+        // --- 1. Level Data (JSON Architecture) ---
+        const levelData = [
+            {
+                id: 1,
+                themeName: "Scrapyard",
+                bgClass: "bg-orange-800", // Darker background for contrast
+                beamClass: "bg-gray-400",
+                blockClass: "bg-gray-800", // Heavy iron blocks
+                effortClass: "bg-yellow-400",
+                goalTitle: "Job 1: Balance the Load",
+                goalText: "Move the fulcrum (triangle) so the 4 blocks of scrap balance perfectly with your 4 blocks of push power.",
+                goalType: "balance",
+                loadWeight: 4,
+                loadPos: 1,  // Notch 1
+                effortPower: 4,
+                effortPos: 9,  // Notch 9
+                initialFulcrum: 2
+            },
+            {
+                id: 2,
+                themeName: "Crystal Mines",
+                bgClass: "bg-indigo-950",
+                beamClass: "bg-cyan-800",
+                blockClass: "bg-fuchsia-500", // Glowing crystals
+                effortClass: "bg-emerald-400",
+                goalTitle: "Job 2: Lift the Crystal",
+                goalText: "You only have 2 blocks of push power. Can you figure out how to lift the 8-block crystal? Tip: Distance gives you strength!",
+                goalType: "lift",
+                loadWeight: 8,
+                loadPos: 1,
+                effortPower: 2,
+                effortPos: 9,
+                initialFulcrum: 6
+            }
+        ];
 
-        // --- AUDIO ENGINE (Web Audio API) ---
-        let audioCtx;
-        function initAudio() {
-            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        }
+        // --- 2. State Variables ---
+        let currentLevelIndex = 0;
+        let fulcrumPos = 5; // 0 to 10 (representing percentages 0% to 100%)
+        let isScientistMode = false;
+        let isLocked = false; // Locks interaction during animation
 
-        function playTone(freq, type, duration, vol = 0.1) {
-            if (!audioCtx) return;
-            const osc = audioCtx.createOscillator();
-            const gain = audioCtx.createGain();
-            osc.type = type;
-            osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
-            gain.gain.setValueAtTime(vol, audioCtx.currentTime);
-            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
-            osc.connect(gain); gain.connect(audioCtx.destination);
-            osc.start(); osc.stop(audioCtx.currentTime + duration);
-        }
-
-        function playThud(velocity) {
-            if (!audioCtx) return;
-            let vol = Math.min(Math.abs(velocity) * 2, 0.5); 
-            if (vol < 0.05) return;
-            
-            const osc = audioCtx.createOscillator();
-            const gain = audioCtx.createGain();
-            osc.type = 'sine';
-            osc.frequency.setValueAtTime(80, audioCtx.currentTime);
-            osc.frequency.exponentialRampToValueAtTime(20, audioCtx.currentTime + 0.1);
-            gain.gain.setValueAtTime(vol, audioCtx.currentTime);
-            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
-            osc.connect(gain); gain.connect(audioCtx.destination);
-            osc.start(); osc.stop(audioCtx.currentTime + 0.1);
-        }
-
-        function playSuccess() {
-            setTimeout(() => playTone(440, 'triangle', 0.2, 0.1), 0);
-            setTimeout(() => playTone(554, 'triangle', 0.2, 0.1), 100);
-            setTimeout(() => playTone(659, 'triangle', 0.4, 0.1), 200);
-            setTimeout(() => playTone(880, 'sine', 0.6, 0.1), 300);
-        }
-
-        document.getElementById('audio-overlay').addEventListener('click', function() {
-            initAudio();
-            this.style.opacity = '0';
-            setTimeout(() => this.style.display = 'none', 300);
-        });
-
-        // --- MATTER.JS RIGIDBODY SETUP ---
-        const Engine = Matter.Engine,
-              Bodies = Matter.Bodies,
-              Composite = Matter.Composite,
-              Constraint = Matter.Constraint,
-              Body = Matter.Body,
-              Events = Matter.Events;
-
-        const engine = Engine.create();
-        const canvas = document.getElementById('gameCanvas');
-        const ctx = canvas.getContext('2d');
-        const container = document.getElementById('game-container');
+        // --- 3. DOM Elements ---
+        const appEl = document.getElementById('app');
+        const themeNameEl = document.getElementById('theme-name');
+        const goalTitleEl = document.getElementById('goal-title');
+        const goalTextEl = document.getElementById('goal-text');
         
-        let width, height;
-        let ppx = 80; 
-        const BOARD_LENGTH = 10; 
+        const beamWrapper = document.getElementById('beam-wrapper');
+        const beamVisual = document.getElementById('beam-visual');
+        const fulcrumTouchTarget = document.getElementById('fulcrum-touch-target');
+        const loadContainer = document.getElementById('load-container');
+        const effortContainer = document.getElementById('effort-container');
+        
+        const pushBtn = document.getElementById('push-btn');
+        const toggleScientistBtn = document.getElementById('toggle-scientist');
+        const toggleKnob = document.getElementById('toggle-knob');
+        const scientistPanel = document.getElementById('scientist-panel');
+        
+        // Modal elements
+        const modalOverlay = document.getElementById('modal-overlay');
+        const modalBox = document.getElementById('modal-box');
+        const modalTitle = document.getElementById('modal-title');
+        const modalText = document.getElementById('modal-text');
+        const modalBtn = document.getElementById('modal-btn');
 
-        // Physics Bodies
-        let ground, fulcrumBody, board, boxL, boxR, pinL, pinR, centerPivot;
-        let wasBalanced = false;
-
-        function resize() {
-            const rect = container.getBoundingClientRect();
-            width = rect.width;
-            height = rect.height;
-            const dpr = window.devicePixelRatio || 1;
-            canvas.width = width * dpr;
-            canvas.height = height * dpr;
-            ctx.scale(dpr, dpr);
-            ppx = (width * 0.8) / BOARD_LENGTH; 
-            
-            buildScene(); 
-        }
-        window.addEventListener('resize', resize);
-
-        // --- UI BINDINGS ---
-        const ui = {
-            fulcrum: document.getElementById('sl-fulcrum'),
-            m1: document.getElementById('sl-m1'), p1: document.getElementById('sl-p1'),
-            m2: document.getElementById('sl-m2'), p2: document.getElementById('sl-p2'),
-            lblF: document.getElementById('lbl-fulcrum'),
-            lblM1: document.getElementById('lbl-m1'), lblP1: document.getElementById('lbl-p1'),
-            lblM2: document.getElementById('lbl-m2'), lblP2: document.getElementById('lbl-p2'),
-            tqLeft: document.getElementById('val-tq-left'),
-            tqRight: document.getElementById('val-tq-right'),
-            statusText: document.getElementById('val-status'),
-            statusPanel: document.getElementById('status-panel')
-        };
-
-        function updateUI() {
-            ui.lblF.innerText = parseFloat(ui.fulcrum.value).toFixed(1) + ' m';
-            ui.lblM1.innerText = ui.m1.value + ' kg';
-            ui.lblP1.innerText = parseFloat(ui.p1.value).toFixed(1) + ' m';
-            ui.lblM2.innerText = ui.m2.value + ' kg';
-            ui.lblP2.innerText = parseFloat(ui.p2.value).toFixed(1) + ' m';
+        // --- 4. Initialization and Rendering ---
+        function initApp() {
+            setupEventListeners();
+            loadLevel(0);
         }
 
-        // --- BUILD MATTER.JS SCENE ---
-        function buildScene() {
-            Composite.clear(engine.world);
-
-            let cx = width / 2;
-            let cy = height * 0.75; 
-
-            // Static Elements
-            ground = Bodies.rectangle(cx, cy + 25, width * 2, 50, { 
-                isStatic: true, friction: 0.5, restitution: 0.2 
-            });
-            
-            // Fulcrum setup
-            let fVal = parseFloat(ui.fulcrum.value);
-            let fulcrumX = cx; 
-            fulcrumBody = Bodies.trapezoid(fulcrumX, cy - 40, 60, 80, 1, { 
-                isStatic: true, friction: 1 
-            });
-
-            // Board setup
-            let boardW = BOARD_LENGTH * ppx;
-            let boardH = 16;
-            
-            board = Bodies.rectangle(fulcrumX, cy - 80 - boardH/2, boardW, boardH, {
-                mass: 10, 
-                friction: 0.8,
-                restitution: 0.1,
-                frictionAir: 0.02 
-            });
-
-            let attachmentOffset = (fVal - (BOARD_LENGTH / 2)) * ppx;
-            Body.setPosition(board, { x: fulcrumX - attachmentOffset, y: board.position.y });
-
-            centerPivot = Constraint.create({
-                bodyA: fulcrumBody,
-                pointA: { x: 0, y: -40 },
-                bodyB: board,
-                pointB: { x: attachmentOffset, y: 0 },
-                stiffness: 1,
-                length: 0
-            });
-
-            // Boxes setup
-            boxL = createBox(parseFloat(ui.m1.value));
-            boxR = createBox(parseFloat(ui.m2.value));
-            
-            Composite.add(engine.world, [ground, fulcrumBody, board, centerPivot, boxL, boxR]);
-            
-            updateBoxConstraints();
-        }
-
-        function createBox(mass) {
-            let size = 30 + Math.sqrt(mass) * 4; 
-            return Bodies.rectangle(0, 0, size, size, {
-                mass: mass,
-                friction: 1.0,
-                restitution: 0.1
-            });
-        }
-
-        function updateBoxConstraints() {
-            let p1 = parseFloat(ui.p1.value);
-            let p2 = parseFloat(ui.p2.value);
-            let boardLeftEdgeOffset = -(BOARD_LENGTH * ppx) / 2;
-
-            let offsetL = boardLeftEdgeOffset + (p1 * ppx);
-            let offsetR = boardLeftEdgeOffset + (p2 * ppx);
-
-            if (pinL) Composite.remove(engine.world, pinL);
-            if (pinR) Composite.remove(engine.world, pinR);
-
-            pinL = Constraint.create({
-                bodyA: board, pointA: { x: offsetL, y: -8 },
-                bodyB: boxL, pointB: { x: 0, y: boxL.bounds.max.y - boxL.position.y },
-                stiffness: 1, length: 0
-            });
-            
-            pinR = Constraint.create({
-                bodyA: board, pointA: { x: offsetR, y: -8 },
-                bodyB: boxR, pointB: { x: 0, y: boxR.bounds.max.y - boxR.position.y },
-                stiffness: 1, length: 0
-            });
-
-            Composite.add(engine.world, [pinL, pinR]);
-        }
-
-        // Handle Slider Changes
-        [ui.fulcrum, ui.m1, ui.p1, ui.m2, ui.p2].forEach(el => {
-            el.addEventListener('input', () => {
-                updateUI();
-                
-                let currentAngle = board.angle;
-                let currentOmega = board.angularVelocity;
-                
-                buildScene();
-                
-                Body.setAngle(board, currentAngle);
-                Body.setAngularVelocity(board, currentOmega);
-            });
-        });
-
-        // Events
-        Events.on(engine, 'collisionStart', function(event) {
-            if (!board || !ground) return; // Safety check
-            const pairs = event.pairs;
-            for (let i = 0; i < pairs.length; i++) {
-                const bodyA = pairs[i].bodyA;
-                const bodyB = pairs[i].bodyB;
-                if ((bodyA === board && bodyB === ground) || (bodyB === board && bodyA === ground)) {
-                    playThud(board.angularVelocity);
-                }
-            }
-        });
-
-        Events.on(engine, 'afterUpdate', function() {
-            if (!board) return; // FIX: Prevents engine crash if this fires before the board exists!
-
-            let fPos = parseFloat(ui.fulcrum.value);
-            let m1 = parseFloat(ui.m1.value);
-            let p1 = parseFloat(ui.p1.value);
-            let m2 = parseFloat(ui.m2.value);
-            let p2 = parseFloat(ui.p2.value);
-            let g = 9.81;
-
-            let d1 = fPos - p1;
-            let d2 = fPos - p2;
-            let dBoard = fPos - (BOARD_LENGTH / 2);
-
-            let tq1 = (m1 * g) * d1;
-            let tq2 = (m2 * g) * d2;
-            let tqBoard = (board.mass * g) * dBoard;
-
-            let tqLeft = (tq1 > 0 ? tq1 : 0) + (tq2 > 0 ? tq2 : 0) + (tqBoard > 0 ? tqBoard : 0);
-            let tqRight = Math.abs((tq1 < 0 ? tq1 : 0) + (tq2 < 0 ? tq2 : 0) + (tqBoard < 0 ? tqBoard : 0));
-
-            ui.tqLeft.innerText = tqLeft.toFixed(1) + ' N·m';
-            ui.tqRight.innerText = tqRight.toFixed(1) + ' N·m';
-
-            let isBalanced = Math.abs(tqLeft - tqRight) < 0.5 && Math.abs(board.angularVelocity) < 0.005 && Math.abs(board.angle) < 0.05;
-
-            if (isBalanced) {
-                ui.statusText.innerText = "⚖️ PERFECTLY BALANCED!";
-                ui.statusPanel.classList.add('balanced');
-                if (!wasBalanced) { playSuccess(); wasBalanced = true; }
-            } else {
-                ui.statusPanel.classList.remove('balanced');
-                wasBalanced = false;
-                if (board.angle > 0.02) ui.statusText.innerText = "Tipping Left ↙️";
-                else if (board.angle < -0.02) ui.statusText.innerText = "Tipping Right ↘️";
-                else ui.statusText.innerText = "Stabilizing...";
-            }
-        });
-
-        // --- CUSTOM RENDER LOOP ---
-        function draw() {
-            ctx.clearRect(0, 0, width, height);
-
-            if (!ground || !fulcrumBody || !board) {
-                window.requestAnimationFrame(draw);
+        function loadLevel(index) {
+            if(index >= levelData.length) {
+                // Game Completed State
+                showModal("Game Complete!", "You finished all the jobs!", "Play Again", () => loadLevel(0));
                 return;
             }
 
-            // 1. Draw Ground
-            let cy = ground.position.y - 25; 
-            ctx.fillStyle = '#dfe6e9';
-            ctx.fillRect(0, cy, width, height - cy);
-            ctx.strokeStyle = '#b2bec3';
-            ctx.lineWidth = 4;
-            ctx.beginPath(); ctx.moveTo(0, cy); ctx.lineTo(width, cy); ctx.stroke();
+            currentLevelIndex = index;
+            const level = levelData[currentLevelIndex];
+            
+            // Reset state
+            isLocked = false;
+            fulcrumPos = level.initialFulcrum;
+            beamWrapper.style.transform = `rotate(0deg)`;
 
-            // 2. Draw Fulcrum
-            ctx.save();
-            ctx.translate(fulcrumBody.position.x, fulcrumBody.position.y);
-            ctx.beginPath();
-            ctx.moveTo(0, -40);
-            ctx.lineTo(-30, 40);
-            ctx.lineTo(30, 40);
-            ctx.closePath();
-            ctx.fillStyle = 'var(--fulcrum-color)';
-            ctx.fill();
-            ctx.lineWidth = 4;
-            ctx.strokeStyle = '#303952';
-            ctx.stroke();
-            ctx.restore();
+            // Apply Theme UI
+            appEl.className = `flex-1 flex flex-col relative transition-colors duration-500 ${level.bgClass}`;
+            themeNameEl.textContent = level.themeName;
+            goalTitleEl.textContent = level.goalTitle;
+            goalTextEl.textContent = level.goalText;
+            
+            // Render Beam styling
+            beamVisual.className = `w-full h-full rounded-md shadow-lg relative flex items-center border-b-4 border-black/30 ${level.beamClass}`;
+            
+            // Draw Notches (11 notches: 0 to 10)
+            const notchesHTML = Array.from({length: 11}).map((_, i) => 
+                `<div class="w-1 h-3 bg-black/40 rounded-t-sm" style="opacity: ${i === 0 || i === 10 ? '0' : '1'}"></div>`
+            ).join('');
+            beamVisual.querySelector('div').innerHTML = notchesHTML;
 
-            // 3. Draw Board
-            ctx.save();
-            ctx.translate(board.position.x, board.position.y);
-            ctx.rotate(board.angle);
+            // Render Load and Effort blocks visually
+            renderBlocks(loadContainer, level.loadWeight, level.blockClass, level.loadPos);
+            renderBlocks(effortContainer, level.effortPower, level.effortClass, level.effortPos, true);
 
-            let boardW = BOARD_LENGTH * ppx;
-            let boardH = 16;
-            let leftEdge = -boardW / 2;
+            // Set Initial rule text for Scientist Mode
+            document.getElementById('math-rule-word').textContent = level.goalType === 'balance' ? 'Equal to' : 'Greater than';
 
-            ctx.fillStyle = 'var(--board-color)';
-            ctx.beginPath();
-            ctx.roundRect(leftEdge, -boardH/2, boardW, boardH, 8);
-            ctx.fill();
-            ctx.strokeStyle = '#c44569';
-            ctx.lineWidth = 3;
-            ctx.stroke();
-
-            // Meter markings
-            ctx.fillStyle = 'rgba(0,0,0,0.4)';
-            ctx.font = 'bold 12px Nunito';
-            ctx.textAlign = 'center';
-            for(let i=0; i<=BOARD_LENGTH; i++) {
-                let mx = leftEdge + (i * ppx);
-                ctx.fillRect(mx - 1, -boardH/2, 2, boardH/2);
-                ctx.fillText(i, mx, boardH/2 + 14);
-            }
-            ctx.restore();
-
-            // 4. Draw Weights
-            function drawWeight(box, mass, color, label) {
-                ctx.save();
-                ctx.translate(box.position.x, box.position.y);
-                ctx.rotate(box.angle);
-                
-                let size = 30 + Math.sqrt(mass) * 4;
-                
-                ctx.fillStyle = color;
-                ctx.beginPath(); 
-                ctx.roundRect(-size/2, -size/2, size, size, 8); 
-                ctx.fill();
-                ctx.strokeStyle = 'rgba(0,0,0,0.2)';
-                ctx.lineWidth = 3; 
-                ctx.stroke();
-
-                ctx.fillStyle = 'white';
-                ctx.font = 'bold 14px Nunito';
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'middle';
-                ctx.fillText(mass + 'kg', 0, 0);
-                
-                ctx.restore();
-            }
-
-            drawWeight(boxL, parseFloat(ui.m1.value), 'var(--primary)', 'Load');
-            drawWeight(boxR, parseFloat(ui.m2.value), 'var(--accent)', 'Force');
-
-            // 5. Draw Center Pin
-            ctx.fillStyle = 'white';
-            ctx.beginPath(); 
-            ctx.arc(fulcrumBody.position.x, fulcrumBody.position.y - 40, 6, 0, Math.PI*2); 
-            ctx.fill();
-            ctx.strokeStyle = '#2d3436'; 
-            ctx.stroke();
-
-            window.requestAnimationFrame(draw);
+            updatePhysics();
         }
 
-        // --- INITIALIZATION (ORDER MATTERS) ---
-        // 1. Build the scene and UI first
-        resize();
-        updateUI();
-        
-        // 2. Start Physics loop
-        (function runPhysics() {
-            Engine.update(engine, 1000 / 60);
-            window.requestAnimationFrame(runPhysics);
-        })();
-        
-        // 3. Start Render loop
-        draw(); 
+        function renderBlocks(container, count, colorClass, positionPercent, isEffort = false) {
+            container.style.left = `${positionPercent * 10}%`;
+            
+            let blocksHTML = `<div class="grid grid-cols-2 gap-[2px] mb-2 drop-shadow-md">`;
+            for(let i=0; i<count; i++) {
+                blocksHTML += `<div class="w-6 h-6 rounded-sm ${colorClass} border-2 border-black/20 flex items-center justify-center shadow-inner"></div>`;
+            }
+            blocksHTML += `</div>`;
+            
+            // Add the arrow/label underneath
+            if(isEffort) {
+                blocksHTML += `<div class="w-12 h-6 bg-green-500 rounded-md text-white text-xs font-bold flex items-center justify-center stripes border-2 border-white shadow-md animate-pulse">YOU</div>`;
+            } else {
+                blocksHTML += `<div class="text-xs font-bold text-white bg-black/50 px-2 rounded-full backdrop-blur-sm shadow-sm">LOAD</div>`;
+            }
+
+            container.innerHTML = blocksHTML;
+        }
+
+        // --- 5. Core Physics & Drag Logic ---
+        function updatePhysics() {
+            const level = levelData[currentLevelIndex];
+            
+            // 1. Update Fulcrum UI Position
+            fulcrumTouchTarget.style.left = `${fulcrumPos * 10}%`;
+            
+            // 2. Set the Beam's pivot point perfectly to the top of the fulcrum
+            beamWrapper.style.transformOrigin = `${fulcrumPos * 10}% 100%`;
+
+            // 3. Calculate Math
+            const loadDist = Math.abs(fulcrumPos - level.loadPos);
+            const effortDist = Math.abs(fulcrumPos - level.effortPos);
+            
+            const loadTorque = level.loadWeight * loadDist;
+            const effortTorque = level.effortPower * effortDist;
+
+            // 4. Update Scientist Mode UI
+            document.getElementById('math-load').innerHTML = `${level.loadWeight} <span class="text-gray-400 text-sm">blocks</span> × ${loadDist} <span class="text-gray-400 text-sm">dist</span> = <span class="text-white">${loadTorque}</span>`;
+            document.getElementById('math-effort').innerHTML = `${level.effortPower} <span class="text-gray-400 text-sm">blocks</span> × ${effortDist} <span class="text-gray-400 text-sm">dist</span> = <span class="text-white">${effortTorque}</span>`;
+
+            return { loadTorque, effortTorque };
+        }
+
+        function handlePush() {
+            if(isLocked) return;
+            isLocked = true; // Lock UI
+            pushBtn.classList.add('opacity-50', 'pointer-events-none');
+            pushBtn.textContent = "PUSHING...";
+
+            const level = levelData[currentLevelIndex];
+            const { loadTorque, effortTorque } = updatePhysics();
+            
+            let rotation = 0;
+            let success = false;
+            let feedbackTitle = "";
+            let feedbackText = "";
+
+            // Evaluate Win/Loss Conditions
+            if (level.goalType === "balance") {
+                if (loadTorque === effortTorque) {
+                    rotation = 0; // Perfect balance
+                    success = true;
+                    feedbackTitle = "Perfect Balance! ⚖️";
+                    feedbackText = "You found the exact middle point. Great job!";
+                } else if (loadTorque > effortTorque) {
+                    rotation = -12; // Load drops
+                    feedbackTitle = "Too Heavy! 💥";
+                    feedbackText = "The load side is pulling harder. Move the fulcrum closer to the load to make it easier.";
+                } else {
+                    rotation = 12; // Effort drops
+                    feedbackTitle = "Too Much Power! 💥";
+                    feedbackText = "You pushed too hard! Move the fulcrum further from the load.";
+                }
+            } 
+            else if (level.goalType === "lift") {
+                if (effortTorque >= loadTorque) {
+                    rotation = 15; // Effort pushes down, load lifts up!
+                    success = true;
+                    feedbackTitle = "Heave Ho! 🚀";
+                    feedbackText = `You lifted the heavy crystal using only ${level.effortPower} blocks of power! That is Mechanical Advantage!`;
+                } else {
+                    rotation = -15; // Failed to lift, load drops back down/stays down
+                    feedbackTitle = "Not Strong Enough! 💦";
+                    feedbackText = "You don't have enough torque. Try moving the fulcrum closer to the heavy load!";
+                }
+            }
+
+            // Apply Animation
+            beamWrapper.style.transform = `rotate(${rotation}deg)`;
+
+            // Wait for animation, then show modal
+            setTimeout(() => {
+                if (success) {
+                    showModal(feedbackTitle, feedbackText, "Next Job ➔", () => loadLevel(currentLevelIndex + 1));
+                } else {
+                    showModal(feedbackTitle, feedbackText, "Try Again ↺", () => {
+                        // Reset beam
+                        beamWrapper.style.transform = `rotate(0deg)`;
+                        isLocked = false;
+                        pushBtn.classList.remove('opacity-50', 'pointer-events-none');
+                        pushBtn.textContent = "PUSH!";
+                    });
+                }
+            }, 1000);
+        }
+
+        // --- 6. Interaction Handlers ---
+        function setupEventListeners() {
+            // Push Button
+            pushBtn.addEventListener('click', handlePush);
+
+            // Scientist Toggle
+            toggleScientistBtn.addEventListener('click', () => {
+                isScientistMode = !isScientistMode;
+                if(isScientistMode) {
+                    toggleScientistBtn.classList.replace('bg-gray-400', 'bg-green-500');
+                    toggleKnob.style.transform = 'translateX(28px)';
+                    scientistPanel.classList.remove('hidden');
+                } else {
+                    toggleScientistBtn.classList.replace('bg-green-500', 'bg-gray-400');
+                    toggleKnob.style.transform = 'translateX(0px)';
+                    scientistPanel.classList.add('hidden');
+                }
+            });
+
+            // Dragging Logic for Fulcrum
+            let isDragging = false;
+
+            const startDrag = (e) => {
+                if(isLocked) return;
+                isDragging = true;
+                e.preventDefault(); // Prevent scrolling on touch
+            };
+
+            const doDrag = (e) => {
+                if(!isDragging || isLocked) return;
+                e.preventDefault();
+                
+                // Unified touch/mouse coordinates
+                const clientX = e.type.includes('mouse') ? e.clientX : e.touches[0].clientX;
+                
+                // Get beam dimensions to calculate percentage
+                const beamRect = beamVisual.getBoundingClientRect();
+                let xPos = clientX - beamRect.left;
+                
+                // Convert to a 0-10 notch scale
+                let ratio = xPos / beamRect.width;
+                let notch = Math.round(ratio * 10);
+
+                // Prevent placing fulcrum directly under or outside the blocks
+                const level = levelData[currentLevelIndex];
+                if(notch <= level.loadPos) notch = level.loadPos + 1;
+                if(notch >= level.effortPos) notch = level.effortPos - 1;
+
+                if (fulcrumPos !== notch) {
+                    fulcrumPos = notch;
+                    // Provide tiny haptic feedback if supported
+                    if (navigator.vibrate) navigator.vibrate(10);
+                    updatePhysics();
+                }
+            };
+
+            const endDrag = () => {
+                isDragging = false;
+            };
+
+            // Touch events
+            fulcrumTouchTarget.addEventListener('touchstart', startDrag, {passive: false});
+            document.addEventListener('touchmove', doDrag, {passive: false});
+            document.addEventListener('touchend', endDrag);
+            
+            // Mouse events
+            fulcrumTouchTarget.addEventListener('mousedown', startDrag);
+            document.addEventListener('mousemove', doDrag);
+            document.addEventListener('mouseup', endDrag);
+        }
+
+        // --- 7. Modal System ---
+        function showModal(title, text, btnText, callback) {
+            modalTitle.textContent = title;
+            modalText.textContent = text;
+            modalBtn.textContent = btnText;
+            
+            // Change colors based on success/fail
+            if (title.includes("Perfect") || title.includes("Heave")) {
+                modalTitle.className = "text-4xl chunky-text mb-4 text-green-500";
+            } else {
+                modalTitle.className = "text-4xl chunky-text mb-4 text-red-500";
+            }
+
+            modalOverlay.classList.remove('hidden');
+            // Small delay to allow display:block to apply before animating opacity
+            setTimeout(() => {
+                modalOverlay.classList.remove('opacity-0');
+                modalBox.classList.remove('scale-95');
+            }, 10);
+
+            // Handle button click once
+            modalBtn.onclick = () => {
+                modalOverlay.classList.add('opacity-0');
+                modalBox.classList.add('scale-95');
+                setTimeout(() => {
+                    modalOverlay.classList.add('hidden');
+                    callback();
+                }, 300); // Wait for fade out
+            };
+        }
+
+        // Boot the app
+        window.onload = initApp;
 
     </script>
 </body>
